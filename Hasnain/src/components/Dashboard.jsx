@@ -47,7 +47,7 @@ const PROFILE_BG_IMG = 'https://i.ibb.co/0FqY1Z2/Whats-App-Image-2026-03-18-at-5
     name: 'Sir Yasir Ali (SUK)',
     email: 'yasirlashari131@gmail.com',
     employeeId: '15353',
-    hourlyRate: '2500/hr',
+    hourlyRate: '*******/hr',
     phone: '03033742231'
   });
   const [profileDraft, setProfileDraft] = useState(trainerProfile);
