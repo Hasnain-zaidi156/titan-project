@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './TitanPortal.css';
 
 export default function TitanPortal({ onLoginSuccess }) {
-  // 'student-login', 'student-register', or 'teacher-login'
+  const navigate = useNavigate();
   const [view, setView] = useState('student-login');
   
-  // Form States
   const [cnic, setCnic] = useState('');
   const [email, setEmail] = useState('');
   const [dob, setDob] = useState('');
@@ -25,14 +25,12 @@ export default function TitanPortal({ onLoginSuccess }) {
     e.preventDefault();
 
     if (view === 'teacher-login') {
-      // Trainer Authentication Check
       if (email === 'drhasnain953@gmail.com' && password === '2008hasanin') {
         onLoginSuccess('trainer', { name: "Dr. Hasnain", email: email });
       } else {
         alert("Invalid Trainer Email or Password!");
       }
     } else if (view === 'student-login') {
-      // Student Login Check (hardcoded demo credentials)
       if (cnic.trim() === '4550290108391' && password === 'Hasnain') {
         onLoginSuccess('student', { name: "Hasnain", cnic: cnic });
       } else {
@@ -211,6 +209,29 @@ export default function TitanPortal({ onLoginSuccess }) {
           </button>
         )}
       </div>
+
+      {/* ══════ Admin Portal Link ══════ */}
+      {/* <div style={{ textAlign: 'center', marginTop: '16px' }}>
+        <button
+          type="button"
+          onClick={() => navigate('')}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#555',
+            fontSize: '12px',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            transition: 'color 0.2s',
+            fontFamily: 'inherit',
+          }}
+          onMouseEnter={(e) => (e.target.style.color = '#1a3c6e')}
+          onMouseLeave={(e) => (e.target.style.color = '#555')}
+        >
+          
+        </button>
+      </div>*/}
     </div>
   );
 }
