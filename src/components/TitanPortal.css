@@ -1,0 +1,247 @@
+:root {
+  --primary-blue: #32458d;
+  --primary-blue-hover: #26356f;
+  --bg-light: #ffffff;
+  --text-muted: #6c757d;
+  --border-color: #e2e8f0;
+  --input-focus: #e0e7ff;
+  
+  --transition-fast: all 0.2s ease-in-out;
+  --transition-normal: all 0.3s ease-in-out;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #ffffff;
+  margin: 0;
+  padding: 0;
+}
+
+/* Main Container */
+.titan-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 10px;
+  background-color: #ffffff;
+  box-sizing: border-box;
+}
+
+/* Header Section */
+.titan-header {
+  text-align: center;
+  margin-bottom: 8px; /* Margins thodi aur kam ki taake bada logo fit ho sake */
+}
+
+.titan-logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.titan-logo-img {
+  max-width: 115px; /* Logo ka size yahan se bada kar diya hai */
+  height: auto;
+  border-radius: 8px; 
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  transition: var(--transition-normal);
+}
+
+.titan-logo-img:hover {
+  transform: scale(1.03);
+}
+
+.titan-fullname {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 2px 0;
+}
+
+.titan-portal-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+/* Main Card */
+.titan-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 370px; /* Form width perfect 370px hi rakhi hai */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: var(--transition-normal); 
+}
+
+/* Tabs */
+.titan-tabs {
+  display: flex;
+  background-color: #f1f3f5;
+  padding: 4px;
+  margin: 12px 12px 0 12px;
+  border-radius: 6px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+
+.tab-btn.active {
+  background-color: #ffffff;
+  color: #000000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Form Styles */
+.titan-form {
+  padding: 15px 18px;
+  display: flex;
+  flex-direction: column;
+}
+
+.titan-form h3 {
+  margin: 0 0 2px 0;
+  font-size: 1.05rem;
+  color: #111111;
+}
+
+.form-instruction {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+  margin: 0 0 12px 0;
+}
+
+/* Inputs */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.input-group label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-bottom: 3px;
+  color: #1a1a1a;
+}
+
+.input-group input {
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  color: #333;
+  outline: none;
+  box-sizing: border-box;
+  transition: var(--transition-fast);
+}
+
+.input-group input:focus {
+  border-color: var(--primary-blue);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+
+/* Password Wrapper */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.password-wrapper input {
+  width: 100%;
+  padding-right: 50px;
+}
+
+.toggle-password-text {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary-blue);
+  opacity: 0.85;
+  padding: 0;
+  transition: var(--transition-fast);
+}
+
+/* Buttons */
+.submit-btn {
+  background-color: var(--primary-blue);
+  color: #ffffff;
+  border: none;
+  padding: 10px;
+  font-size: 0.88rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 4px;
+  transition: var(--transition-fast);
+}
+
+.submit-btn:hover {
+  background-color: var(--primary-blue-hover);
+}
+
+.forgot-password-link {
+  text-align: center;
+  color: #553cff;
+  font-size: 0.8rem;
+  margin-top: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Switcher Box */
+.portal-switcher-box {
+  width: 100%;
+  max-width: 370px;
+  margin-top: 10px;
+}
+
+.switch-portal-btn {
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #000000;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.switch-portal-btn:hover {
+  background-color: #f8f9fa;
+  border-color: #cbd5e1;
+}
