@@ -180,6 +180,44 @@ const ICONS = {
     </>
   ),
   chevronDown: <polyline points="6 9 12 15 18 9" />,
+  pencil: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="M22 2 11 13" />
+      <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </>
+  ),
+  receipt: (
+    <>
+      <path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z" />
+      <path d="M9 8h6" />
+      <path d="M9 12h6" />
+    </>
+  ),
+  check: <polyline points="20 6 9 17 4 12" />,
+  alert: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="13" />
+      <line x1="12" y1="16" x2="12.01" y2="16" />
+    </>
+  ),
+  chevronLeft: <polyline points="15 18 9 12 15 6" />,
+  chevronRight: <polyline points="9 18 15 12 9 6" />,
 };
 
 /* ---------------------------- Admin Login ---------------------------- */
@@ -294,21 +332,31 @@ const STATUS_OPTIONS = [
   "blacklisted",
 ];
 
+const PAYMENT_STATUS_OPTIONS = ["Paid", "Pending", "Not Generated"];
+const COUNTRIES = ["Pakistan"];
+const CITIES = ["Sukkur", "Karachi", "Lahore", "Islamabad"];
+const CAMPUSES = ["TITAN Sukkur Campus", "TITAN Karachi Campus", "TITAN Lahore Campus"];
+const COURSES = ["Graphic Designing", "Mobile App Development", "Web Development", "Digital Marketing", "Spoken English"];
+const BATCHES = ["Batch 1", "Batch 2", "Batch 3"];
+const SLOTS = ["Morning", "Evening"];
+const GENDERS = ["Male", "Female"];
+const LAPTOP_OPTIONS = ["Yes", "No"];
+
 const FILTER_FIELDS = [
   { key: "dateRange", label: "Start date  →  End date", type: "date-range" },
-  { key: "country", label: "Country", type: "select", options: [] },
-  { key: "city", label: "City", type: "select", options: [] },
-  { key: "campus", label: "Campus", type: "select", options: [] },
-  { key: "course", label: "Course", type: "select", options: [] },
-  { key: "batch", label: "Batch", type: "select", options: [] },
-  { key: "slot", label: "Slot", type: "select", options: [] },
+  { key: "country", label: "Country", type: "select", options: COUNTRIES },
+  { key: "city", label: "City", type: "select", options: CITIES },
+  { key: "campus", label: "Campus", type: "select", options: CAMPUSES },
+  { key: "course", label: "Course", type: "select", options: COURSES },
+  { key: "batch", label: "Batch", type: "select", options: BATCHES },
+  { key: "slot", label: "Slot", type: "select", options: SLOTS },
   { key: "status", label: "Status", type: "select", options: STATUS_OPTIONS },
-  { key: "laptop", label: "Laptop", type: "select", options: ["Yes", "No"] },
-  { key: "sponsorship", label: "Sponsorship Status", type: "select", options: [] },
+  { key: "laptop", label: "Laptop", type: "select", options: LAPTOP_OPTIONS },
+  { key: "sponsorship", label: "Sponsorship Status", type: "select", options: ["Sponsored", "Self Paid"] },
   { key: "year", label: "Year", type: "select", options: ["2026", "2025", "2024"] },
-  { key: "paymentMonth", label: "Payment Month", type: "select", options: [] },
-  { key: "paymentStatus", label: "Payment Status", type: "select", options: ["Paid", "Unpaid", "Partial"] },
-  { key: "gender", label: "Gender", type: "select", options: ["Male", "Female"] },
+  { key: "paymentMonth", label: "Payment Month", type: "select", options: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] },
+  { key: "paymentStatus", label: "Payment Status", type: "select", options: PAYMENT_STATUS_OPTIONS },
+  { key: "gender", label: "Gender", type: "select", options: GENDERS },
 ];
 
 const TABLE_COLUMNS = [
@@ -321,6 +369,121 @@ const TABLE_COLUMNS = [
   "Payment Status",
   "Action",
 ];
+
+let nextStudentId = 4;
+let nextInvoiceSeq = 844227;
+
+const SEED_STUDENTS = [
+  {
+    id: 1,
+    admissionNo: "ADM844226",
+    studentName: "Muhammad Hassan",
+    fatherName: "Muhammad Afzal",
+    cnic: "4550408050073",
+    phone: "03103589178",
+    course: "Mobile App Development",
+    status: "enrolled",
+    paymentStatus: "Not Generated",
+    country: "Pakistan",
+    city: "Sukkur",
+    campus: "TITAN Sukkur Campus",
+    batch: "Batch 1",
+    slot: "Morning",
+    gender: "Male",
+    laptop: "No",
+    invoices: [
+      {
+        invoiceNumber: "ADM844226",
+        jazzCashId: "",
+        type: "Registration",
+        month: "May-2026",
+        dueDate: "10-May-2026",
+        amount: 1000,
+        status: "PENDING",
+      },
+    ],
+  },
+  {
+    id: 2,
+    admissionNo: "ADM844227",
+    studentName: "Ayesha Khan",
+    fatherName: "Imran Khan",
+    cnic: "4520112345678",
+    phone: "03001234567",
+    course: "Graphic Designing",
+    status: "pending",
+    paymentStatus: "Pending",
+    country: "Pakistan",
+    city: "Karachi",
+    campus: "TITAN Karachi Campus",
+    batch: "Batch 2",
+    slot: "Evening",
+    gender: "Female",
+    laptop: "Yes",
+    invoices: [],
+  },
+  {
+    id: 3,
+    admissionNo: "ADM844228",
+    studentName: "Bilal Ahmed",
+    fatherName: "Tariq Ahmed",
+    cnic: "4510098765432",
+    phone: "03211234567",
+    course: "Web Development",
+    status: "completed",
+    paymentStatus: "Paid",
+    country: "Pakistan",
+    city: "Lahore",
+    campus: "TITAN Lahore Campus",
+    batch: "Batch 1",
+    slot: "Morning",
+    gender: "Male",
+    laptop: "No",
+    invoices: [
+      {
+        invoiceNumber: "ADM844228",
+        jazzCashId: "JC998877",
+        type: "Registration",
+        month: "April-2026",
+        dueDate: "10-Apr-2026",
+        amount: 1000,
+        status: "PAID",
+      },
+    ],
+  },
+];
+
+const EMPTY_FORM = {
+  studentName: "",
+  fatherName: "",
+  cnic: "",
+  phone: "",
+  country: "Pakistan",
+  city: CITIES[0],
+  campus: CAMPUSES[0],
+  course: COURSES[0],
+  batch: BATCHES[0],
+  slot: SLOTS[0],
+  status: "pending",
+  paymentStatus: "Not Generated",
+  gender: GENDERS[0],
+  laptop: "No",
+};
+
+function statusBadgeClass(status) {
+  const s = (status || "").toLowerCase();
+  if (["enrolled", "approved", "passed"].includes(s)) return "ta-badge-blue";
+  if (["completed", "certified"].includes(s)) return "ta-badge-green";
+  if (["rejected", "failed", "eliminated", "cancelled", "blacklisted"].includes(s)) return "ta-badge-red";
+  return "ta-badge-gray";
+}
+
+function paymentBadgeClass(status) {
+  const s = (status || "").toLowerCase();
+  if (s === "paid") return "ta-badge-green";
+  if (s === "pending") return "ta-badge-orange";
+  return "ta-badge-red";
+}
 
 function FilterSelect({ field, value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -337,6 +500,12 @@ function FilterSelect({ field, value, onChange }) {
           <>
             <div className="ta-select-backdrop" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
             <div className="ta-select-menu">
+              <div
+                className="ta-select-option ta-select-option-clear"
+                onClick={(e) => { e.stopPropagation(); onChange(""); setOpen(false); }}
+              >
+                {field.label}
+              </div>
               {field.options.length === 0 && (
                 <div className="ta-select-empty">No options</div>
               )}
@@ -361,8 +530,8 @@ function FilterSelect({ field, value, onChange }) {
   );
 }
 
-function FiltersModal({ onClose, onApply }) {
-  const [values, setValues] = useState({});
+function FiltersModal({ onClose, onApply, initialValues }) {
+  const [values, setValues] = useState(initialValues || {});
 
   const setField = (key, val) => setValues((v) => ({ ...v, [key]: val }));
 
@@ -380,7 +549,17 @@ function FiltersModal({ onClose, onApply }) {
           <div className="ta-filter-field">
             <label>{FILTER_FIELDS[0].label}</label>
             <div className="ta-date-range-wrap">
-              <input type="date" />
+              <input
+                type="date"
+                value={values.startDate || ""}
+                onChange={(e) => setField("startDate", e.target.value)}
+              />
+              <span style={{ color: "var(--ta-text-muted)", fontSize: "11px" }}>to</span>
+              <input
+                type="date"
+                value={values.endDate || ""}
+                onChange={(e) => setField("endDate", e.target.value)}
+              />
               <Icon path={ICONS.calendar} size={15} />
             </div>
           </div>
@@ -396,6 +575,15 @@ function FiltersModal({ onClose, onApply }) {
         </div>
 
         <div className="ta-modal-footer">
+          <button
+            className="ta-btn-outline"
+            onClick={() => {
+              setValues({});
+              onApply({});
+            }}
+          >
+            Reset
+          </button>
           <button className="ta-btn-outline" onClick={onClose}>Cancel</button>
           <button
             className="ta-btn-primary"
@@ -412,10 +600,419 @@ function FiltersModal({ onClose, onApply }) {
   );
 }
 
+function StudentFormModal({ title, initialValues, onClose, onSave }) {
+  const [form, setForm] = useState(initialValues || EMPTY_FORM);
+
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.studentName.trim() || !form.fatherName.trim() || !form.cnic.trim() || !form.phone.trim()) {
+      return;
+    }
+    onSave(form);
+  };
+
+  return (
+    <div className="ta-modal-overlay" onClick={onClose}>
+      <form className="ta-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+        <div className="ta-modal-header">
+          <h3>{title}</h3>
+          <button type="button" className="ta-modal-close" onClick={onClose}>
+            <Icon path={ICONS.close} size={18} />
+          </button>
+        </div>
+
+        <div className="ta-modal-body">
+          <div className="ta-filter-field">
+            <label>Student name *</label>
+            <input className="ta-form-input" required value={form.studentName} onChange={(e) => set("studentName", e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>Father name *</label>
+            <input className="ta-form-input" required value={form.fatherName} onChange={(e) => set("fatherName", e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>CNIC *</label>
+            <input className="ta-form-input" required value={form.cnic} onChange={(e) => set("cnic", e.target.value)} placeholder="00000-0000000-0" />
+          </div>
+          <div className="ta-filter-field">
+            <label>Phone *</label>
+            <input className="ta-form-input" required value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="03XXXXXXXXX" />
+          </div>
+          <div className="ta-filter-field">
+            <label>Country</label>
+            <select className="ta-form-select" value={form.country} onChange={(e) => set("country", e.target.value)}>
+              {COUNTRIES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>City</label>
+            <select className="ta-form-select" value={form.city} onChange={(e) => set("city", e.target.value)}>
+              {CITIES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Campus</label>
+            <select className="ta-form-select" value={form.campus} onChange={(e) => set("campus", e.target.value)}>
+              {CAMPUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Course</label>
+            <select className="ta-form-select" value={form.course} onChange={(e) => set("course", e.target.value)}>
+              {COURSES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Batch</label>
+            <select className="ta-form-select" value={form.batch} onChange={(e) => set("batch", e.target.value)}>
+              {BATCHES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Slot</label>
+            <select className="ta-form-select" value={form.slot} onChange={(e) => set("slot", e.target.value)}>
+              {SLOTS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Status</label>
+            <select className="ta-form-select" value={form.status} onChange={(e) => set("status", e.target.value)}>
+              {STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Payment Status</label>
+            <select className="ta-form-select" value={form.paymentStatus} onChange={(e) => set("paymentStatus", e.target.value)}>
+              {PAYMENT_STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Gender</label>
+            <select className="ta-form-select" value={form.gender} onChange={(e) => set("gender", e.target.value)}>
+              {GENDERS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Laptop</label>
+            <select className="ta-form-select" value={form.laptop} onChange={(e) => set("laptop", e.target.value)}>
+              {LAPTOP_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="ta-modal-footer">
+          <button type="button" className="ta-btn-outline" onClick={onClose}>Cancel</button>
+          <button type="submit" className="ta-btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ViewStudentModal({ student, onClose }) {
+  const FIELDS = [
+    ["Admission No", student.admissionNo],
+    ["Student name", student.studentName],
+    ["Father name", student.fatherName],
+    ["CNIC", student.cnic],
+    ["Phone", student.phone],
+    ["Country", student.country],
+    ["City", student.city],
+    ["Campus", student.campus],
+    ["Course", student.course],
+    ["Batch", student.batch],
+    ["Slot", student.slot],
+    ["Status", student.status],
+    ["Payment Status", student.paymentStatus],
+    ["Gender", student.gender],
+    ["Laptop", student.laptop],
+  ];
+
+  return (
+    <div className="ta-modal-overlay" onClick={onClose}>
+      <div className="ta-modal ta-view-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ta-modal-header">
+          <h3>Student Details</h3>
+          <button className="ta-modal-close" onClick={onClose}>
+            <Icon path={ICONS.close} size={18} />
+          </button>
+        </div>
+        <div className="ta-view-grid">
+          {FIELDS.map(([label, val]) => (
+            <div className="ta-view-row" key={label}>
+              <span className="ta-view-label">{label}</span>
+              <span className="ta-view-value">{val || "—"}</span>
+            </div>
+          ))}
+        </div>
+        <div className="ta-modal-footer">
+          <button className="ta-btn-primary" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaymentsModal({ student, onClose, onGenerate, onMarkPaid }) {
+  const [month, setMonth] = useState("");
+
+  return (
+    <div className="ta-modal-overlay" onClick={onClose}>
+      <div className="ta-modal ta-payments-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ta-modal-header">
+          <h3>Payments — {student.studentName}</h3>
+          <button className="ta-modal-close" onClick={onClose}>
+            <Icon path={ICONS.close} size={18} />
+          </button>
+        </div>
+
+        <div className="ta-table-wrap ta-payments-table-wrap">
+          <table className="ta-table">
+            <thead>
+              <tr>
+                <th>Invoice number</th>
+                <th>JazzCash ID</th>
+                <th>Type</th>
+                <th>Month</th>
+                <th>Due date</th>
+                <th>Amount (Rs)</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {student.invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={8}>
+                    <div className="ta-empty-state">
+                      <Icon path={ICONS.inbox} size={36} />
+                      <p>No invoices yet</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                student.invoices.map((inv, i) => (
+                  <tr key={i}>
+                    <td>{inv.invoiceNumber}</td>
+                    <td>{inv.jazzCashId || "—"}</td>
+                    <td>{inv.type}</td>
+                    <td>{inv.month}</td>
+                    <td>{inv.dueDate}</td>
+                    <td>{inv.amount}</td>
+                    <td>
+                      <span className={`ta-badge ${inv.status === "PAID" ? "ta-badge-green" : "ta-badge-orange"}`}>
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td>
+                      {inv.status !== "PAID" && (
+                        <button
+                          type="button"
+                          className="ta-icon-action"
+                          title="Mark as paid"
+                          onClick={() => onMarkPaid(i)}
+                        >
+                          <Icon path={ICONS.check} size={15} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="ta-modal-body ta-payments-generate-row">
+          <div className="ta-filter-field" style={{ flex: 1 }}>
+            <label>Select month</label>
+            <div className="ta-date-range-wrap">
+              <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+              <Icon path={ICONS.calendar} size={15} />
+            </div>
+          </div>
+        </div>
+
+        <div className="ta-modal-footer ta-payments-footer">
+          <button
+            type="button"
+            className="ta-btn-primary ta-generate-btn"
+            onClick={() => {
+              if (!month) return;
+              onGenerate(month);
+              setMonth("");
+            }}
+          >
+            GENERATE
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmPopover({ message, onCancel, onConfirm }) {
+  return (
+    <div className="ta-confirm-popover" onClick={(e) => e.stopPropagation()}>
+      <div className="ta-confirm-popover-msg">
+        <Icon path={ICONS.alert} size={15} />
+        <span>{message}</span>
+      </div>
+      <div className="ta-confirm-popover-actions">
+        <button className="ta-btn-outline ta-confirm-btn-sm" onClick={onCancel}>Cancel</button>
+        <button className="ta-btn-primary ta-confirm-btn-sm" onClick={onConfirm}>OK</button>
+      </div>
+    </div>
+  );
+}
+
 function StudentsPage() {
+  const [students, setStudents] = useState(SEED_STUDENTS);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [searchText, setSearchText] = useState("");
-  const [rows] = useState([]); // no data by default, matches reference screenshots
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [toast, setToast] = useState("");
+
+  const [formModal, setFormModal] = useState(null); // { mode: "add" | "edit", student? }
+  const [viewStudent, setViewStudent] = useState(null);
+  const [paymentsStudent, setPaymentsStudent] = useState(null);
+  const [confirmFor, setConfirmFor] = useState(null); // { id, action: "send" | "delete" }
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  };
+
+  const matchesFilters = (s) => {
+    const f = appliedFilters;
+    if (f.country && s.country !== f.country) return false;
+    if (f.city && s.city !== f.city) return false;
+    if (f.campus && s.campus !== f.campus) return false;
+    if (f.course && s.course !== f.course) return false;
+    if (f.batch && s.batch !== f.batch) return false;
+    if (f.slot && s.slot !== f.slot) return false;
+    if (f.status && s.status !== f.status) return false;
+    if (f.laptop && s.laptop !== f.laptop) return false;
+    if (f.paymentStatus && s.paymentStatus !== f.paymentStatus) return false;
+    if (f.gender && s.gender !== f.gender) return false;
+    return true;
+  };
+
+  const matchesSearch = (s) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    return [s.admissionNo, s.studentName, s.fatherName, s.cnic, s.phone, s.course]
+      .filter(Boolean)
+      .some((field) => field.toLowerCase().includes(q));
+  };
+
+  const filteredRows = students.filter((s) => matchesFilters(s) && matchesSearch(s));
+  const totalItems = filteredRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const startIdx = totalItems === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const endIdx = Math.min(safePage * pageSize, totalItems);
+  const pageRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const runSearch = () => {
+    setSearchQuery(searchInput);
+    setPage(1);
+  };
+
+  const handleExport = () => {
+    const header = TABLE_COLUMNS.filter((c) => c !== "Action").join(",");
+    const lines = filteredRows.map((s) =>
+      [s.studentName, s.fatherName, s.cnic, s.phone, s.course, s.status, s.paymentStatus]
+        .map((v) => `"${(v || "").toString().replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csv = [header, ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "students.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Export downloaded");
+  };
+
+  const handleAddStudent = (form) => {
+    const admissionNo = `ADM${nextInvoiceSeq++}`;
+    const newStudent = {
+      id: nextStudentId++,
+      admissionNo,
+      ...form,
+      invoices: [],
+    };
+    setStudents((prev) => [newStudent, ...prev]);
+    setFormModal(null);
+    showToast("Student added");
+  };
+
+  const handleEditStudent = (form) => {
+    setStudents((prev) =>
+      prev.map((s) => (s.id === formModal.student.id ? { ...s, ...form } : s))
+    );
+    setFormModal(null);
+    showToast("Student updated");
+  };
+
+  const handleDelete = (id) => {
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+    setConfirmFor(null);
+    showToast("Student deleted");
+  };
+
+  const handleSendEmail = (id) => {
+    setConfirmFor(null);
+    showToast("Email sent");
+  };
+
+  const handleDownloadRow = (s) => {
+    showToast(`Downloaded record for ${s.studentName}`);
+  };
+
+  const handleGenerateInvoice = (month) => {
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id !== paymentsStudent.id) return s;
+        const newInvoice = {
+          invoiceNumber: s.admissionNo,
+          jazzCashId: "",
+          type: "Registration",
+          month,
+          dueDate: "10-" + month,
+          amount: 1000,
+          status: "PENDING",
+        };
+        const updated = { ...s, invoices: [...s.invoices, newInvoice], paymentStatus: "Pending" };
+        setPaymentsStudent(updated);
+        return updated;
+      })
+    );
+    showToast("Invoice generated");
+  };
+
+  const handleMarkPaid = (invIdx) => {
+    setStudents((prev) =>
+      prev.map((s) => {
+        if (s.id !== paymentsStudent.id) return s;
+        const invoices = s.invoices.map((inv, i) => (i === invIdx ? { ...inv, status: "PAID" } : inv));
+        const updated = { ...s, invoices, paymentStatus: "Paid" };
+        setPaymentsStudent(updated);
+        return updated;
+      })
+    );
+    showToast("Marked as paid");
+  };
 
   return (
     <div className="ta-students-page">
@@ -427,19 +1024,24 @@ function StudentsPage() {
         <button className="ta-btn-outline ta-filters-btn" onClick={() => setFiltersOpen(true)}>
           <Icon path={ICONS.filter} size={15} />
           Filters
+          {Object.values(appliedFilters).some(Boolean) && <span className="ta-filter-dot" />}
         </button>
 
         <input
           className="ta-search-input"
           type="text"
           placeholder="Search"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && runSearch()}
         />
 
-        <button className="ta-btn-primary">Search</button>
-        <button className="ta-btn-primary">Export</button>
-        <button className="ta-btn-primary ta-add-new-btn">
+        <button className="ta-btn-primary" onClick={runSearch}>Search</button>
+        <button className="ta-btn-primary" onClick={handleExport}>Export</button>
+        <button
+          className="ta-btn-primary ta-add-new-btn"
+          onClick={() => setFormModal({ mode: "add" })}
+        >
           <Icon path={ICONS.plus} size={15} />
           Add new
         </button>
@@ -455,7 +1057,7 @@ function StudentsPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {pageRows.length === 0 ? (
               <tr>
                 <td colSpan={TABLE_COLUMNS.length}>
                   <div className="ta-empty-state">
@@ -465,11 +1067,75 @@ function StudentsPage() {
                 </td>
               </tr>
             ) : (
-              rows.map((row, i) => (
-                <tr key={i}>
-                  {TABLE_COLUMNS.map((col) => (
-                    <td key={col}>{row[col]}</td>
-                  ))}
+              pageRows.map((s) => (
+                <tr key={s.id}>
+                  <td><span className="ta-link-text">{s.studentName}</span></td>
+                  <td>{s.fatherName}</td>
+                  <td>{s.cnic}</td>
+                  <td>{s.phone}</td>
+                  <td>{s.course}</td>
+                  <td>
+                    <span className={`ta-badge ${statusBadgeClass(s.status)}`}>
+                      {s.status?.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`ta-badge ${paymentBadgeClass(s.paymentStatus)}`}>
+                      {s.paymentStatus?.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="ta-action-row">
+                      <button className="ta-icon-action" title="View" onClick={() => setViewStudent(s)}>
+                        <Icon path={ICONS.eye} size={15} />
+                      </button>
+                      <button className="ta-icon-action" title="Payments" onClick={() => setPaymentsStudent(s)}>
+                        <Icon path={ICONS.receipt} size={15} />
+                      </button>
+                      <button
+                        className="ta-icon-action"
+                        title="Edit"
+                        onClick={() => setFormModal({ mode: "edit", student: s })}
+                      >
+                        <Icon path={ICONS.pencil} size={15} />
+                      </button>
+                      <div className="ta-action-popover-anchor">
+                        <button
+                          className="ta-icon-action"
+                          title="Send email"
+                          onClick={() => setConfirmFor({ id: s.id, action: "send" })}
+                        >
+                          <Icon path={ICONS.send} size={15} />
+                        </button>
+                        {confirmFor?.id === s.id && confirmFor.action === "send" && (
+                          <ConfirmPopover
+                            message="Sure to send email again?"
+                            onCancel={() => setConfirmFor(null)}
+                            onConfirm={() => handleSendEmail(s.id)}
+                          />
+                        )}
+                      </div>
+                      <button className="ta-icon-action" title="Download" onClick={() => handleDownloadRow(s)}>
+                        <Icon path={ICONS.download} size={15} />
+                      </button>
+                      <div className="ta-action-popover-anchor">
+                        <button
+                          className="ta-icon-action ta-icon-action-danger"
+                          title="Delete"
+                          onClick={() => setConfirmFor({ id: s.id, action: "delete" })}
+                        >
+                          <Icon path={ICONS.trash} size={15} />
+                        </button>
+                        {confirmFor?.id === s.id && confirmFor.action === "delete" && (
+                          <ConfirmPopover
+                            message="Delete this student?"
+                            onCancel={() => setConfirmFor(null)}
+                            onConfirm={() => handleDelete(s.id)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -477,9 +1143,80 @@ function StudentsPage() {
         </table>
       </div>
 
-      {filtersOpen && (
-        <FiltersModal onClose={() => setFiltersOpen(false)} onApply={() => {}} />
+      {totalItems > 0 && (
+        <div className="ta-pagination">
+          <span className="ta-pagination-info">
+            {startIdx}-{endIdx} of {totalItems} items
+          </span>
+          <div className="ta-pagination-controls">
+            <button
+              className="ta-page-btn"
+              disabled={safePage <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <Icon path={ICONS.chevronLeft} size={14} />
+            </button>
+            <span className="ta-page-current">{safePage}</span>
+            <button
+              className="ta-page-btn"
+              disabled={safePage >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <Icon path={ICONS.chevronRight} size={14} />
+            </button>
+            <select
+              className="ta-page-size-select"
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+            >
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+            </select>
+          </div>
+        </div>
       )}
+
+      {filtersOpen && (
+        <FiltersModal
+          initialValues={appliedFilters}
+          onClose={() => setFiltersOpen(false)}
+          onApply={(vals) => { setAppliedFilters(vals); setPage(1); }}
+        />
+      )}
+
+      {formModal?.mode === "add" && (
+        <StudentFormModal
+          title="Add New Student"
+          initialValues={EMPTY_FORM}
+          onClose={() => setFormModal(null)}
+          onSave={handleAddStudent}
+        />
+      )}
+
+      {formModal?.mode === "edit" && (
+        <StudentFormModal
+          title="Edit Student"
+          initialValues={formModal.student}
+          onClose={() => setFormModal(null)}
+          onSave={handleEditStudent}
+        />
+      )}
+
+      {viewStudent && (
+        <ViewStudentModal student={viewStudent} onClose={() => setViewStudent(null)} />
+      )}
+
+      {paymentsStudent && (
+        <PaymentsModal
+          student={paymentsStudent}
+          onClose={() => setPaymentsStudent(null)}
+          onGenerate={handleGenerateInvoice}
+          onMarkPaid={handleMarkPaid}
+        />
+      )}
+
+      {toast && <div className="ta-toast">{toast}</div>}
     </div>
   );
 }
