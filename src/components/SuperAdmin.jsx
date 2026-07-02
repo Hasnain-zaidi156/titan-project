@@ -1221,16 +1221,307 @@ function StudentsPage() {
   );
 }
 
+/* ---------------------------- Attendance (Mark / View) ---------------------------- */
+const INVALID_ATTENDANCE_STATUSES = ["dropout", "eliminated", "cancelled", "rejected", "blacklisted"];
+
+const ATTENDANCE_STUDENTS = [
+  {
+    id: 1,
+    rollNumber: "844226",
+    name: "Muhammad Hassan",
+    course: "Mobile App Development With Flutter (Batch 1)",
+    photo: "https://i.pravatar.cc/100?img=12",
+    status: "enrolled",
+    paymentStatus: "Not Paid",
+    history: [
+      "Sun 14 Jun 2026, 10:14 AM · 23 minutes ago",
+      "Sat 13 Jun 2026, 10:24 AM · a day ago",
+    ],
+  },
+  {
+    id: 2,
+    rollNumber: "843254",
+    name: "Azan Mughal",
+    course: "Mobile App Development With Flutter (Batch 1)",
+    photo: "https://i.pravatar.cc/100?img=33",
+    status: "dropout",
+    paymentStatus: "Not Paid",
+    history: [],
+  },
+  {
+    id: 3,
+    rollNumber: "844227",
+    name: "Ayesha Khan",
+    course: "Graphic Designing (Batch 2)",
+    photo: "https://i.pravatar.cc/100?img=47",
+    status: "pending",
+    paymentStatus: "Pending",
+    history: [],
+  },
+  {
+    id: 4,
+    rollNumber: "844228",
+    name: "Bilal Ahmed",
+    course: "Web Development (Batch 1)",
+    photo: "https://i.pravatar.cc/100?img=15",
+    status: "completed",
+    paymentStatus: "Paid",
+    history: ["Mon 15 Jun 2026, 9:02 AM · 2 days ago"],
+  },
+];
+
+function MarkAttendancePage() {
+  const [students, setStudents] = useState(ATTENDANCE_STUDENTS);
+  const [rollInput, setRollInput] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [activity, setActivity] = useState([]);
+
+  const handleMark = () => {
+    const roll = rollInput.trim();
+    if (!roll) return;
+
+    const match = students.find((s) => s.rollNumber === roll);
+
+    if (!match) {
+      setSelected({ notFound: true, roll });
+      setActivity((prev) => [
+        { id: `nf-${Date.now()}`, notFound: true, roll, time: "a few seconds ago" },
+        ...prev,
+      ]);
+      setRollInput("");
+      return;
+    }
+
+    const isInvalid = INVALID_ATTENDANCE_STATUSES.includes(match.status);
+    const updatedHistory = isInvalid
+      ? match.history
+      : [`Just now · a few seconds ago`, ...match.history];
+
+    if (!isInvalid) {
+      setStudents((prev) =>
+        prev.map((s) => (s.id === match.id ? { ...s, history: updatedHistory } : s))
+      );
+    }
+
+    const studentSnapshot = { ...match, history: updatedHistory };
+
+    setSelected({
+      student: studentSnapshot,
+      error: isInvalid ? match.status : null,
+    });
+
+    setActivity((prev) => [
+      { id: `${match.id}-${Date.now()}`, student: studentSnapshot, time: "a few seconds ago" },
+      ...prev,
+    ]);
+
+    setRollInput("");
+  };
+
+  return (
+    <div className="ta-attendance-page">
+      <div className="ta-attendance-grid">
+        <div className="ta-panel ta-attendance-main">
+          <h3>Student Attendance</h3>
+
+          <input
+            className="ta-form-input ta-attendance-scan-input"
+            placeholder="Scan or Enter Roll Number..."
+            value={rollInput}
+            onChange={(e) => setRollInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleMark()}
+          />
+          <button className="ta-btn-primary ta-mark-btn" onClick={handleMark}>
+            Mark Attendance
+          </button>
+
+          <div className="ta-attendance-cards">
+            <div className="ta-attendance-card">
+              <p className="ta-attendance-card-title">Student Information</p>
+
+              {!selected && (
+                <div className="ta-attendance-placeholder">
+                  Scan or enter a roll number to begin.
+                </div>
+              )}
+
+              {selected?.notFound && (
+                <div className="ta-attendance-placeholder ta-attendance-error">
+                  No student found with roll number "{selected.roll}".
+                </div>
+              )}
+
+              {selected?.student && (
+                <div className="ta-attendance-student">
+                  <img src={selected.student.photo} alt={selected.student.name} />
+                  <h4>{selected.student.name}</h4>
+                  <p className="ta-attendance-roll">Roll Number: {selected.student.rollNumber}</p>
+                  <p className="ta-attendance-course">{selected.student.course}</p>
+                  <p className="ta-attendance-payment">
+                    Payment ({selected.student.paymentStatus === "Paid" ? "Paid" : "N/A"}) :{" "}
+                    {selected.student.paymentStatus === "Paid" ? "Paid" : "N/A"}
+                  </p>
+
+                  {selected.error ? (
+                    <p className="ta-attendance-invalid">
+                      The student exists, but their status is invalid. '{selected.error}'
+                    </p>
+                  ) : (
+                    <p className="ta-attendance-success">
+                      <Icon path={ICONS.check} size={14} /> Attendance Marked
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="ta-attendance-card">
+              <p className="ta-attendance-card-title">Attendance History</p>
+              {selected?.student?.history?.length ? (
+                <ul className="ta-attendance-history-list">
+                  {selected.student.history.map((h, i) => (
+                    <li key={i}>{h}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="ta-attendance-placeholder">No attendance history found.</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="ta-panel ta-attendance-feed">
+          {activity.length === 0 && (
+            <div className="ta-attendance-placeholder">Recent scans will show up here.</div>
+          )}
+          {activity.map((a) => (
+            <div className="ta-attendance-feed-item" key={a.id}>
+              {a.notFound ? (
+                <div className="ta-attendance-feed-avatar ta-attendance-feed-avatar-blank">?</div>
+              ) : (
+                <img src={a.student.photo} alt={a.student.name} />
+              )}
+              <div className="ta-attendance-feed-info">
+                {a.notFound ? (
+                  <p className="ta-attendance-feed-name">Roll {a.roll} not found</p>
+                ) : (
+                  <>
+                    <p className="ta-attendance-feed-name">
+                      {a.student.name} ({a.student.rollNumber})
+                    </p>
+                    <p className="ta-attendance-feed-course">{a.student.course}</p>
+                  </>
+                )}
+                <span className="ta-attendance-feed-time">{a.time}</span>
+              </div>
+              {!a.notFound && (
+                <span
+                  className={`ta-badge ${
+                    a.student.paymentStatus === "Paid" ? "ta-badge-green" : "ta-badge-red"
+                  }`}
+                >
+                  {a.student.paymentStatus === "Paid" ? "PAID" : "NOT PAID"}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ViewAttendancePage() {
+  const rows = ATTENDANCE_STUDENTS.flatMap((s) =>
+    s.history.map((h, i) => ({
+      key: `${s.id}-${i}`,
+      name: s.name,
+      roll: s.rollNumber,
+      course: s.course,
+      time: h,
+    }))
+  );
+
+  return (
+    <div className="ta-students-page">
+      <div className="ta-table-wrap">
+        <table className="ta-table">
+          <thead>
+            <tr>
+              <th>Student name</th>
+              <th>Roll number</th>
+              <th>Course</th>
+              <th>Marked at</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={4}>
+                  <div className="ta-empty-state">
+                    <Icon path={ICONS.inbox} size={42} />
+                    <p>No attendance records</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              rows.map((r) => (
+                <tr key={r.key}>
+                  <td><span className="ta-link-text">{r.name}</span></td>
+                  <td>{r.roll}</td>
+                  <td>{r.course}</td>
+                  <td>{r.time}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------------------- Admin Dashboard ---------------------------- */
+/* Nav structure now supports nested sub-items (children), matching the
+   Saylani admin panel: Attendance -> Mark Attendance / View Attendance,
+   Administration -> Slots, Trainers -> Trainers / Attendance. */
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: ICONS.grid },
   { key: "students", label: "Students", icon: ICONS.users },
-  { key: "attendance", label: "Attendance", icon: ICONS.calendar },
-  { key: "administration", label: "Administration", icon: ICONS.shield },
-  { key: "trainers", label: "Trainers", icon: ICONS.cap },
+  {
+    key: "attendance",
+    label: "Attendance",
+    icon: ICONS.calendar,
+    children: [
+      { key: "mark-attendance", label: "Mark Attendance" },
+      { key: "view-attendance", label: "View Attendance" },
+    ],
+  },
+  {
+    key: "administration",
+    label: "Administration",
+    icon: ICONS.shield,
+    children: [
+      { key: "slots", label: "Slots" },
+    ],
+  },
+  {
+    key: "trainers",
+    label: "Trainers",
+    icon: ICONS.cap,
+    children: [
+      { key: "trainers-list", label: "Trainers" },
+      { key: "trainers-attendance", label: "Attendance" },
+    ],
+  },
   { key: "updation", label: "Updation", icon: ICONS.refresh },
   { key: "profile", label: "Profile", icon: ICONS.user },
 ];
+
+// Flat lookup (parents + children) used for page titles etc.
+const NAV_LOOKUP = NAV_ITEMS.flatMap((item) =>
+  item.children ? [item, ...item.children] : [item]
+);
 
 const STAT_CARDS = [
   { label: "Total Students", value: "592,986", icon: ICONS.users },
@@ -1243,12 +1534,34 @@ export function AdminDashboard({ user, onLogout }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // desktop: expanded/collapsed
   const [isMobileOpen, setIsMobileOpen] = useState(false); // mobile: slide in/out
   const [activePage, setActivePage] = useState("dashboard");
+  const [expandedGroups, setExpandedGroups] = useState({
+    attendance: false,
+    administration: false,
+    trainers: false,
+  });
 
   const toggleSidebar = () => setIsSidebarOpen((p) => !p);
   const toggleMobileSidebar = () => setIsMobileOpen((p) => !p);
 
+  const showLabels = isSidebarOpen || isMobileOpen;
+
+  const toggleGroup = (key) => {
+    // If the rail is collapsed, expand it first so the sub-items are visible
+    if (!showLabels) {
+      setIsSidebarOpen(true);
+      setExpandedGroups((prev) => ({ ...prev, [key]: true }));
+      return;
+    }
+    setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const goToPage = (key) => {
+    setActivePage(key);
+    setIsMobileOpen(false);
+  };
+
   const activeNavLabel =
-    NAV_ITEMS.find((n) => n.key === activePage)?.label ?? "Dashboard";
+    NAV_LOOKUP.find((n) => n.key === activePage)?.label ?? "Dashboard";
 
   return (
     <div className="ta-root">
@@ -1283,7 +1596,7 @@ export function AdminDashboard({ user, onLogout }) {
 
           <div className="ta-sidebar-brand">
             <img src={TITAN_LOGO} alt="TITAN" />
-            {(isSidebarOpen || isMobileOpen) && (
+            {showLabels && (
               <div className="ta-sidebar-brand-text">
                 <strong>TITAN</strong>
                 <span>ADMIN PORTAL</span>
@@ -1292,24 +1605,63 @@ export function AdminDashboard({ user, onLogout }) {
           </div>
 
           <nav className="ta-nav">
-            {NAV_ITEMS.map((item) => (
-              <div
-                key={item.key}
-                className={`ta-nav-item ${activePage === item.key ? "active" : ""}`}
-                onClick={() => {
-                  setActivePage(item.key);
-                  setIsMobileOpen(false);
-                }}
-              >
-                <Icon path={item.icon} />
-                {(isSidebarOpen || isMobileOpen) && <span>{item.label}</span>}
-              </div>
-            ))}
+            {NAV_ITEMS.map((item) => {
+              if (!item.children) {
+                return (
+                  <div
+                    key={item.key}
+                    className={`ta-nav-item ${activePage === item.key ? "active" : ""}`}
+                    onClick={() => goToPage(item.key)}
+                  >
+                    <Icon path={item.icon} />
+                    {showLabels && <span>{item.label}</span>}
+                  </div>
+                );
+              }
+
+              const isGroupOpen = showLabels && expandedGroups[item.key];
+              const isParentActive =
+                activePage === item.key ||
+                item.children.some((c) => c.key === activePage);
+
+              return (
+                <div key={item.key} className="ta-nav-group">
+                  <div
+                    className={`ta-nav-item ta-nav-group-header ${isParentActive ? "active" : ""}`}
+                    onClick={() => toggleGroup(item.key)}
+                  >
+                    <Icon path={item.icon} />
+                    {showLabels && (
+                      <>
+                        <span className="ta-nav-item-label">{item.label}</span>
+                        <span className={`ta-nav-chevron ${isGroupOpen ? "open" : ""}`}>
+                          <Icon path={ICONS.chevronDown} size={13} />
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {showLabels && (
+                    <div className={`ta-nav-children ${isGroupOpen ? "open" : ""}`}>
+                      {item.children.map((child) => (
+                        <div
+                          key={child.key}
+                          className={`ta-nav-subitem ${activePage === child.key ? "active" : ""}`}
+                          onClick={() => goToPage(child.key)}
+                        >
+                          {child.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
 
           <button className="ta-sidebar-logout" onClick={onLogout}>
             <Icon path={ICONS.logout} size={16} />
-            {(isSidebarOpen || isMobileOpen) && <span>Logout</span>}
+            {showLabels && <span>Logout</span>}
           </button>
         </aside>
 
@@ -1361,8 +1713,10 @@ export function AdminDashboard({ user, onLogout }) {
           )}
 
           {activePage === "students" && <StudentsPage />}
+          {activePage === "mark-attendance" && <MarkAttendancePage />}
+          {activePage === "view-attendance" && <ViewAttendancePage />}
 
-          {activePage !== "dashboard" && activePage !== "students" && (
+          {!["dashboard", "students", "mark-attendance", "view-attendance"].includes(activePage) && (
             <div className="ta-panel ta-coming-soon">
               <h3>{activeNavLabel}</h3>
               <p>This section is coming soon.</p>

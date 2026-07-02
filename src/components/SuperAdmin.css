@@ -125,6 +125,7 @@
   padding: 24px 16px;
   position: fixed; top: 0; left: 0; height: 100vh;
   box-sizing: border-box; z-index: 100;
+  overflow: visible;
   transition: width 0.2s cubic-bezier(0.4,0,0.2,1), transform 0.2s cubic-bezier(0.4,0,0.2,1), padding 0.2s;
 }
 .ta-sidebar.expanded { width: 246px; }
@@ -149,7 +150,16 @@
 .ta-sidebar-brand-text strong { color: #fff; font-size: 16px; letter-spacing: 1.5px; font-weight: 800; }
 .ta-sidebar-brand-text span { color: var(--ta-gold); font-size: 9.5px; letter-spacing: 1.6px; font-weight: 700; }
 
-.ta-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.ta-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: visible;
+  display: flex; flex-direction: column; gap: 4px; width: 100%;
+  padding-right: 2px;
+}
+.ta-nav::-webkit-scrollbar { width: 4px; }
+.ta-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; }
 .ta-nav-item {
   display: flex; align-items: center; gap: 12px;
   padding: 11px 13px; border-radius: var(--ta-radius-sm);
@@ -164,6 +174,60 @@
   font-weight: 800;
 }
 .ta-nav-item svg { flex-shrink: 0; }
+
+/* ---- Nested / expandable nav groups (Attendance, Administration, Trainers) ---- */
+.ta-nav-group { width: 100%; }
+
+.ta-nav-group-header { justify-content: flex-start; width: 100%; }
+.ta-nav-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ta-nav-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  opacity: 0.8;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.ta-nav-chevron.open { transform: rotate(180deg); }
+
+.ta-nav-children {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 0;
+  overflow: hidden;
+  padding-left: 34px;
+  margin-top: 0;
+  transition: max-height 0.25s ease, margin-top 0.25s ease;
+}
+.ta-nav-children.open {
+  max-height: 260px;
+  margin-top: 3px;
+  margin-bottom: 4px;
+}
+
+.ta-nav-subitem {
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #9aa5c3;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.ta-nav-subitem:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.ta-nav-subitem.active { color: var(--ta-gold); background: rgba(201,162,39,0.12); }
+
+.ta-sidebar.collapsed .ta-nav-children { display: none; }
 
 .ta-sidebar-logout {
   display: flex; align-items: center; gap: 10px; justify-content: center;
@@ -638,6 +702,144 @@
 .ta-payments-generate-row { grid-template-columns: 1fr; padding-top: 18px; padding-bottom: 0; }
 .ta-payments-footer { justify-content: stretch; }
 .ta-generate-btn { width: 100%; justify-content: center; padding: 13px 0; font-size: 13px; letter-spacing: 0.5px; }
+
+/* ===================== ATTENDANCE PAGE (Mark / View) ===================== */
+.ta-attendance-page { width: 100%; }
+
+.ta-attendance-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 980px) {
+  .ta-attendance-grid { grid-template-columns: 1fr; }
+}
+
+.ta-attendance-main h3 {
+  color: var(--ta-royal-blue);
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0 0 16px;
+}
+
+.ta-attendance-scan-input { margin-bottom: 12px; }
+
+.ta-mark-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px 0;
+  font-size: 13.5px;
+  letter-spacing: 0.3px;
+  margin-bottom: 22px;
+}
+
+.ta-attendance-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .ta-attendance-cards { grid-template-columns: 1fr; }
+}
+
+.ta-attendance-card {
+  border: 1px solid var(--ta-border);
+  border-radius: var(--ta-radius-sm);
+  padding: 18px;
+  min-height: 180px;
+}
+.ta-attendance-card-title {
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--ta-royal-blue);
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ta-border);
+}
+
+.ta-attendance-placeholder {
+  text-align: center;
+  color: var(--ta-text-muted);
+  font-size: 12.5px;
+  padding: 24px 8px;
+}
+.ta-attendance-error { color: #c0392b; }
+
+.ta-attendance-student { text-align: center; }
+.ta-attendance-student img {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--ta-gold);
+  margin-bottom: 10px;
+}
+.ta-attendance-student h4 { margin: 0 0 4px; color: var(--ta-text-dark); font-size: 15px; font-weight: 800; }
+.ta-attendance-roll, .ta-attendance-course, .ta-attendance-payment {
+  margin: 2px 0; font-size: 12px; color: var(--ta-text-muted);
+}
+.ta-attendance-success {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: #1c8a4b; font-weight: 700; font-size: 12.5px;
+  margin-top: 10px;
+}
+.ta-attendance-invalid {
+  color: #c0392b; font-weight: 700; font-size: 12px;
+  margin-top: 10px;
+}
+
+.ta-attendance-history-list {
+  list-style: none;
+  margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ta-attendance-history-list li {
+  font-size: 12px;
+  color: var(--ta-text-muted);
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--ta-border);
+}
+.ta-attendance-history-list li:last-child { border-bottom: none; padding-bottom: 0; }
+
+.ta-attendance-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 560px;
+  overflow-y: auto;
+}
+.ta-attendance-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ta-border);
+}
+.ta-attendance-feed-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+.ta-attendance-feed-item img,
+.ta-attendance-feed-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.ta-attendance-feed-avatar-blank {
+  display: flex; align-items: center; justify-content: center;
+  background: #f1f2f5; color: #9aa1b3; font-weight: 800; font-size: 14px;
+}
+
+.ta-attendance-feed-info { flex: 1; min-width: 0; }
+.ta-attendance-feed-name {
+  margin: 0; font-size: 12.5px; font-weight: 700; color: var(--ta-text-dark);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ta-attendance-feed-course {
+  margin: 2px 0 0; font-size: 11px; color: var(--ta-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ta-attendance-feed-time { font-size: 10.5px; color: #a3a9b8; }
 
 /* ===================== RESPONSIVE ===================== */
 @media screen and (max-width: 768px) {
