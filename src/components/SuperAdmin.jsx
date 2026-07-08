@@ -1271,6 +1271,148 @@ const TRAINERS_LIST = [
   { id: 3, name: "Faisal Raza", subject: "Digital Marketing", campus: "TITAN Lahore Campus" },
 ];
 
+/* ---------------------------------------------------------------
+   Trainer directory + Trainer attendance (scan card / view / request)
+   — matches admin.saylanimit.com Trainers section screenshots
+------------------------------------------------------------------ */
+
+const TRAINER_STATUS_OPTIONS = ["Active", "Inactive"];
+
+let nextTrainerId = 4;
+
+const TRAINERS_FULL_LIST = [
+  {
+    id: 1,
+    name: "Sir Rajesh Kumar(SUK)",
+    email: "rajesh.kumar@titan.edu",
+    employeeId: "15354",
+    courses: ["Web Development"],
+    cities: ["Sukkur"],
+    campus: "Saylani TITAN Sukkur Campus",
+    slotSchedule: "Sat 12:00 PM - 02:00 PM | Sun 12:00 PM - 02:00 PM",
+    status: "Active",
+  },
+  {
+    id: 2,
+    name: "Miss Maham",
+    email: "maham@titan.edu",
+    employeeId: "15360",
+    courses: ["Graphic Designing"],
+    cities: ["Sukkur"],
+    campus: "Saylani TITAN Sukkur Campus",
+    slotSchedule: "Sat 08:00 AM - 10:00 AM | Sun 08:00 AM - 10:00 AM",
+    status: "Active",
+  },
+  {
+    id: 3,
+    name: "Sir ARSLAN AHMED (SUK)",
+    email: "arslan.ahmed@titan.edu",
+    employeeId: "15349",
+    courses: ["Artificial Intelligence and Data Science"],
+    cities: ["Sukkur"],
+    campus: "Saylani TITAN Sukkur Campus",
+    slotSchedule: "Sat 08:00 AM - 10:00 AM | Sun 08:00 AM - 10:00 AM",
+    status: "Active",
+  },
+];
+
+let nextTrainerAttendanceId = 4;
+
+const SEED_TRAINER_ATTENDANCE = [
+  {
+    id: 1,
+    employeeId: "15354",
+    trainerName: "Sir Rajesh Kumar(SUK)",
+    slotSchedule: "Sat 12:00 PM - 02:00 PM | Sun 12:00 PM - 02:00 PM",
+    campus: "Saylani TITAN Sukkur Campus",
+    checkIn: "2026-04-12T12:28:00",
+    checkOut: "2026-04-12T16:36:00",
+    lateMinutes: 28,
+    status: "default",
+  },
+  {
+    id: 2,
+    employeeId: "15360",
+    trainerName: "Miss Maham",
+    slotSchedule: "Sat 08:00 AM - 10:00 AM | Sun 08:00 AM - 10:00 AM",
+    campus: "Saylani TITAN Sukkur Campus",
+    checkIn: "2026-04-12T08:03:00",
+    checkOut: "2026-04-12T11:10:00",
+    lateMinutes: 3,
+    status: "default",
+  },
+  {
+    id: 3,
+    employeeId: "15360",
+    trainerName: "Miss Maham",
+    slotSchedule: "Sat 08:00 AM - 10:00 AM | Sun 08:00 AM - 10:00 AM",
+    campus: "Saylani TITAN Sukkur Campus",
+    checkIn: "2026-04-11T08:04:00",
+    checkOut: "",
+    lateMinutes: 4,
+    status: "default",
+  },
+];
+
+const SEED_TRAINER_ATTENDANCE_REQUESTS = [];
+let nextRequestId = 1;
+
+function parseScheduleTimes(schedule) {
+  if (!schedule) return [];
+  const parts = schedule.split("|").map((p) => p.trim());
+  const times = [];
+  parts.forEach((part) => {
+    const match = part.match(/(\d{1,2}:\d{2}\s?[AP]M)\s*-\s*(\d{1,2}:\d{2}\s?[AP]M)/i);
+    if (match) times.push({ start: match[1], end: match[2] });
+  });
+  return times;
+}
+
+function to24hMinutes(t) {
+  const m = t.trim().match(/(\d{1,2}):(\d{2})\s?([AP]M)/i);
+  if (!m) return null;
+  let h = Number(m[1]);
+  const min = Number(m[2]);
+  const ampm = m[3].toUpperCase();
+  if (ampm === "PM" && h !== 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+function isWithinCheckInWindow(schedule, now = new Date()) {
+  const times = parseScheduleTimes(schedule);
+  if (times.length === 0) return true;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return times.some(({ start }) => {
+    const startMin = to24hMinutes(start);
+    if (startMin == null) return false;
+    // allow check-in from 30 min before to 90 min after the scheduled start
+    return nowMinutes >= startMin - 30 && nowMinutes <= startMin + 90;
+  });
+}
+
+function formatDateTimeLabel(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
+  const month = MONTH_NAMES[d.getMonth()].slice(0, 3);
+  let h = d.getHours();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12 || 12;
+  const min = pad2(d.getMinutes());
+  return `${weekday}, ${month} ${d.getDate()}, ${d.getFullYear()}, ${pad2(h)}:${min} ${ampm}`;
+}
+
+function durationLabel(checkIn, checkOut) {
+  if (!checkIn || !checkOut) return "0m";
+  const diffMs = new Date(checkOut) - new Date(checkIn);
+  if (diffMs <= 0) return "0m";
+  const totalMin = Math.round(diffMs / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
 function attendanceStats(record) {
   const present = record.presentDates.length;
   const leave = record.leaveDates.length;
@@ -1663,80 +1805,716 @@ function ViewAttendancePage() {
 }
 
 
-function TrainerAttendancePage() {
-  const [date, setDate] = useState(toYMD(TODAY_REF.getFullYear(), TODAY_REF.getMonth(), TODAY_REF.getDate()));
-  const [statusMap, setStatusMap] = useState(() => {
-    const init = {};
-    TRAINERS_LIST.forEach((t) => { init[t.id] = "present"; });
-    return init;
-  });
+/* ---- Trainers list page (Trainers > Trainers) ---- */
+
+const EMPTY_TRAINER_FORM = {
+  name: "",
+  email: "",
+  employeeId: "",
+  courses: COURSES[0],
+  cities: CITIES[0],
+  campus: CAMPUSES[0],
+  slotSchedule: "",
+  status: "Active",
+};
+
+function TrainerFormModal({ title, initialValues, onClose, onSave }) {
+  const [form, setForm] = useState(initialValues || EMPTY_TRAINER_FORM);
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.email.trim() || !form.employeeId.trim()) return;
+    onSave(form);
+  };
+
+  return (
+    <div className="ta-modal-overlay" onClick={onClose}>
+      <form className="ta-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+        <div className="ta-modal-header">
+          <h3>{title}</h3>
+          <button type="button" className="ta-modal-close" onClick={onClose}>
+            <Icon path={ICONS.close} size={18} />
+          </button>
+        </div>
+        <div className="ta-modal-body">
+          <div className="ta-filter-field">
+            <label>Trainer name *</label>
+            <input className="ta-form-input" required value={form.name} onChange={(e) => set("name", e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>Email *</label>
+            <input className="ta-form-input" type="email" required value={form.email} onChange={(e) => set("email", e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>Employee ID *</label>
+            <input className="ta-form-input" required value={form.employeeId} onChange={(e) => set("employeeId", e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>Course</label>
+            <select className="ta-form-select" value={form.courses} onChange={(e) => set("courses", e.target.value)}>
+              {COURSES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>City</label>
+            <select className="ta-form-select" value={form.cities} onChange={(e) => set("cities", e.target.value)}>
+              {CITIES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Campus</label>
+            <select className="ta-form-select" value={form.campus} onChange={(e) => set("campus", e.target.value)}>
+              {CAMPUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Slot Schedule</label>
+            <input
+              className="ta-form-input"
+              placeholder="Sat 09:00 AM - 11:00 AM | Sun 09:00 AM - 11:00 AM"
+              value={form.slotSchedule}
+              onChange={(e) => set("slotSchedule", e.target.value)}
+            />
+          </div>
+          <div className="ta-filter-field">
+            <label>Status</label>
+            <select className="ta-form-select" value={form.status} onChange={(e) => set("status", e.target.value)}>
+              {TRAINER_STATUS_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="ta-modal-footer">
+          <button type="button" className="ta-btn-outline" onClick={onClose}>Cancel</button>
+          <button type="submit" className="ta-btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function TrainersListPage() {
+  const [trainers, setTrainers] = useState(TRAINERS_FULL_LIST);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [formModal, setFormModal] = useState(null);
   const [toast, setToast] = useState("");
 
-  const setStatus = (id, value) => setStatusMap((prev) => ({ ...prev, [id]: value }));
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
 
-  const handleSave = () => {
-    setToast(`Trainer attendance saved for ${date}`);
-    setTimeout(() => setToast(""), 2500);
+  const filtered = trainers.filter((t) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    return t.name.toLowerCase().includes(q) || t.email.toLowerCase().includes(q) || t.employeeId.includes(q);
+  });
+
+  const runSearch = () => setSearchQuery(searchInput);
+  const handleExport = () => showToast("Export downloaded");
+
+  const handleAdd = (form) => {
+    setTrainers((prev) => [{ id: nextTrainerId++, ...form, courses: [form.courses], cities: [form.cities] }, ...prev]);
+    setFormModal(null);
+    showToast("Trainer added");
+  };
+
+  const handleEdit = (form) => {
+    setTrainers((prev) =>
+      prev.map((t) => (t.id === formModal.trainer.id ? { ...t, ...form, courses: [form.courses], cities: [form.cities] } : t))
+    );
+    setFormModal(null);
+    showToast("Trainer updated");
   };
 
   return (
     <div className="ta-students-page">
       <div className="ta-students-toolbar">
-        <div className="ta-filter-field" style={{ minWidth: 200 }}>
-          <label>Date</label>
-          <div className="ta-date-range-wrap">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <Icon path={ICONS.calendar} size={15} />
-          </div>
-        </div>
+        <button className="ta-btn-outline ta-filters-btn" onClick={() => setFiltersOpen(true)}>
+          <Icon path={ICONS.filter} size={15} />
+          Filters
+        </button>
+        <input
+          className="ta-search-input"
+          placeholder="Search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && runSearch()}
+        />
+        <button className="ta-btn-primary" onClick={runSearch}>Search</button>
+        <button className="ta-btn-primary" onClick={handleExport}>Export</button>
+        <button className="ta-btn-primary ta-add-new-btn" onClick={() => setFormModal({ mode: "add" })}>
+          <Icon path={ICONS.plus} size={15} />
+          Add new
+        </button>
       </div>
 
       <div className="ta-table-wrap">
         <table className="ta-table">
           <thead>
             <tr>
-              <th>Trainer Name</th>
-              <th>Subject</th>
-              <th>Campus</th>
+              <th>Trainer name</th>
+              <th>Email</th>
+              <th>Employee ID</th>
+              <th>Courses</th>
+              <th>Cities</th>
               <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {TRAINERS_LIST.map((t) => (
-              <tr key={t.id}>
-                <td>{t.name}</td>
-                <td>{t.subject}</td>
-                <td>{t.campus}</td>
-                <td>
-                  <div style={{ display: "flex", gap: 14 }}>
-                    {["present", "absent"].map((opt) => (
-                      <label key={opt} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, textTransform: "capitalize", cursor: "pointer" }}>
-                        <input
-                          type="radio"
-                          name={`trainer-status-${t.id}`}
-                          checked={statusMap[t.id] === opt}
-                          onChange={() => setStatus(t.id, opt)}
-                        />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7}><div className="ta-empty-state"><Icon path={ICONS.inbox} size={42} /><p>No data</p></div></td></tr>
+            ) : (
+              filtered.map((t) => (
+                <tr key={t.id}>
+                  <td><span className="ta-link-text">{t.name}</span></td>
+                  <td>{t.email}</td>
+                  <td>{t.employeeId}</td>
+                  <td>{(t.courses || []).join(", ")}</td>
+                  <td>{(t.cities || []).join(", ")}</td>
+                  <td><span className={`ta-badge ${t.status === "Active" ? "ta-badge-blue" : "ta-badge-gray"}`}>{t.status}</span></td>
+                  <td>
+                    <button className="ta-icon-action" title="Edit" onClick={() => setFormModal({ mode: "edit", trainer: t })}>
+                      <Icon path={ICONS.pencil} size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <button className="ta-btn-primary" onClick={handleSave}>Save Attendance</button>
-      </div>
+      {filtersOpen && (
+        <div className="ta-modal-overlay" onClick={() => setFiltersOpen(false)}>
+          <div className="ta-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ta-modal-header">
+              <h3>Filters</h3>
+              <button className="ta-modal-close" onClick={() => setFiltersOpen(false)}>
+                <Icon path={ICONS.close} size={18} />
+              </button>
+            </div>
+            <div className="ta-modal-body">
+              <p style={{ fontSize: 13, color: "var(--ta-text-muted)" }}>
+                Filter trainers by city, campus, course, or status.
+              </p>
+            </div>
+            <div className="ta-modal-footer">
+              <button className="ta-btn-primary" onClick={() => setFiltersOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {formModal?.mode === "add" && (
+        <TrainerFormModal title="Add new trainer" initialValues={EMPTY_TRAINER_FORM} onClose={() => setFormModal(null)} onSave={handleAdd} />
+      )}
+      {formModal?.mode === "edit" && (
+        <TrainerFormModal
+          title="Edit trainer"
+          initialValues={{
+            ...formModal.trainer,
+            courses: formModal.trainer.courses?.[0] || COURSES[0],
+            cities: formModal.trainer.cities?.[0] || CITIES[0],
+          }}
+          onClose={() => setFormModal(null)}
+          onSave={handleEdit}
+        />
+      )}
 
       {toast && <div className="ta-toast">{toast}</div>}
     </div>
   );
 }
 
+/* ---- Mark Trainer Attendance (Scan Trainer Card) ---- */
+
+function MarkTrainerAttendancePage() {
+  const [employeeId, setEmployeeId] = useState("");
+  const [verifiedTrainer, setVerifiedTrainer] = useState(null);
+  const [searched, setSearched] = useState(false);
+  const [toast, setToast] = useState("");
+  const [toastType, setToastType] = useState("error");
+
+  const showToast = (msg, type = "error") => {
+    setToastType(type);
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  };
+
+  const handleVerify = () => {
+    const trainer = TRAINERS_FULL_LIST.find((t) => t.employeeId === employeeId.trim());
+    setVerifiedTrainer(trainer || null);
+    setSearched(true);
+  };
+
+  const handleCheckIn = () => {
+    if (!verifiedTrainer) return;
+    if (!isWithinCheckInWindow(verifiedTrainer.slotSchedule)) {
+      showToast("Check-in not allowed at this time");
+      return;
+    }
+    showToast(`Checked in: ${verifiedTrainer.name}`, "success");
+  };
+
+  const handleCheckOut = () => {
+    if (!verifiedTrainer) return;
+    showToast(`Checked out: ${verifiedTrainer.name}`, "success");
+  };
+
+  return (
+    <div className="ta-students-page">
+      <div className="ta-panel ta-trainer-scan-panel">
+        <h3 style={{ marginBottom: 14 }}>Scan Trainer Card</h3>
+        <div className="ta-trainer-scan-row">
+          <div className="ta-trainer-scan-input-col">
+            <input
+              className="ta-form-input ta-full-width"
+              placeholder="Scan or enter Employee ID"
+              value={employeeId}
+              onChange={(e) => { setEmployeeId(e.target.value); setSearched(false); }}
+              onKeyDown={(e) => e.key === "Enter" && handleVerify()}
+            />
+            <button className="ta-btn-primary ta-full-width ta-verify-btn" onClick={handleVerify}>
+              Verify Trainer
+            </button>
+          </div>
+
+          <div className="ta-trainer-info-card">
+            <p className="ta-trainer-info-title">Trainer Information</p>
+            {!searched && (
+              <p className="ta-trainer-info-placeholder">Scan or enter Employee ID to see trainer details</p>
+            )}
+            {searched && !verifiedTrainer && (
+              <p className="ta-trainer-info-placeholder">Trainer not found</p>
+            )}
+            {verifiedTrainer && (
+              <div className="ta-trainer-info-body">
+                <div className="ta-trainer-avatar">
+                  <Icon path={ICONS.user} size={28} />
+                </div>
+                <p className="ta-trainer-info-name">{verifiedTrainer.name}</p>
+                <p className="ta-trainer-info-id">Employee ID: {verifiedTrainer.employeeId}</p>
+                <div className="ta-trainer-info-actions">
+                  <button className="ta-btn-primary" onClick={handleCheckIn}>
+                    <Icon path={ICONS.refresh} size={14} /> Check In
+                  </button>
+                  <button className="ta-btn-outline ta-checkout-btn" onClick={handleCheckOut}>
+                    <Icon path={ICONS.refresh} size={14} /> Check Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {toast && <div className={`ta-toast ${toastType === "error" ? "ta-toast-error" : ""}`}>{toast}</div>}
+    </div>
+  );
+}
+
+/* ---- View Trainer Attendance ---- */
+
+function TrainerAttendanceFiltersModal({ onClose, onApply, initialValues }) {
+  const [values, setValues] = useState(initialValues || {});
+  const set = (key, val) => setValues((v) => ({ ...v, [key]: val }));
+
+  const trainerNames = TRAINERS_FULL_LIST.map((t) => t.name);
+  const courseNames = [...new Set(TRAINERS_FULL_LIST.flatMap((t) => t.courses))];
+  const scheduleOptions = [...new Set(TRAINERS_FULL_LIST.map((t) => t.slotSchedule))];
+
+  return (
+    <div className="ta-modal-overlay" onClick={onClose}>
+      <div className="ta-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="ta-modal-header">
+          <h3>Filters</h3>
+          <button className="ta-modal-close" onClick={onClose}>
+            <Icon path={ICONS.close} size={18} />
+          </button>
+        </div>
+        <div className="ta-modal-body">
+          <div className="ta-filter-field">
+            <label>City</label>
+            <select className="ta-form-select" value={values.city || ""} onChange={(e) => set("city", e.target.value)}>
+              <option value="">City</option>
+              {CITIES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Campus</label>
+            <select className="ta-form-select" value={values.campus || ""} onChange={(e) => set("campus", e.target.value)}>
+              <option value="">Campus</option>
+              {CAMPUSES.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Course</label>
+            <select className="ta-form-select" value={values.course || ""} onChange={(e) => set("course", e.target.value)}>
+              <option value="">Course</option>
+              {courseNames.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Trainer</label>
+            <select className="ta-form-select" value={values.trainer || ""} onChange={(e) => set("trainer", e.target.value)}>
+              <option value="">Trainer</option>
+              {trainerNames.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Slot Schedule</label>
+            <select className="ta-form-select" value={values.slotSchedule || ""} onChange={(e) => set("slotSchedule", e.target.value)}>
+              <option value="">Slot Schedule</option>
+              {scheduleOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+          <div className="ta-filter-field">
+            <label>Start date  →  End date</label>
+            <div className="ta-date-range-wrap">
+              <input type="date" value={values.startDate || ""} onChange={(e) => set("startDate", e.target.value)} />
+              <span style={{ color: "var(--ta-text-muted)", fontSize: 11 }}>to</span>
+              <input type="date" value={values.endDate || ""} onChange={(e) => set("endDate", e.target.value)} />
+              <Icon path={ICONS.calendar} size={15} />
+            </div>
+          </div>
+        </div>
+        <div className="ta-modal-footer">
+          <button className="ta-btn-outline" onClick={() => { setValues({}); onApply({}); }}>Reset</button>
+          <button className="ta-btn-outline" onClick={onClose}>Cancel</button>
+          <button className="ta-btn-primary" onClick={() => { onApply(values); onClose(); }}>Apply</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrainerAttendanceEditModal({ record, onClose, onSave }) {
+  const initialDate = record.checkIn ? record.checkIn.slice(0, 10) : toYMD(TODAY_REF.getFullYear(), TODAY_REF.getMonth(), TODAY_REF.getDate());
+  const [date, setDate] = useState(initialDate);
+  const [checkIn, setCheckIn] = useState(record.checkIn ? record.checkIn.slice(11, 16) : "");
+  const [checkOut, setCheckOut] = useState(record.checkOut ? record.checkOut.slice(11, 16) : "");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave({
+      checkIn: checkIn ? `${date}T${checkIn}:00` : record.checkIn,
+      checkOut: checkOut ? `${date}T${checkOut}:00` : record.checkOut,
+    });
+  };
+
+  return (
+    <div className="ta-modal-overlay" onClick={onClose}>
+      <form className="ta-modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+        <div className="ta-modal-header">
+          <h3>Edit Attendance — {record.trainerName}</h3>
+          <button type="button" className="ta-modal-close" onClick={onClose}>
+            <Icon path={ICONS.close} size={18} />
+          </button>
+        </div>
+        <div className="ta-modal-body">
+          <div className="ta-filter-field">
+            <label>Date</label>
+            <div className="ta-date-range-wrap">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Icon path={ICONS.calendar} size={15} />
+            </div>
+          </div>
+          <div className="ta-filter-field">
+            <label>Check In</label>
+            <input className="ta-form-input" type="time" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>Check Out</label>
+            <input className="ta-form-input" type="time" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+          </div>
+        </div>
+        <div className="ta-modal-footer">
+          <button type="button" className="ta-btn-outline" onClick={onClose}>Cancel</button>
+          <button type="submit" className="ta-btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ViewTrainerAttendancePage() {
+  const [records, setRecords] = useState(SEED_TRAINER_ATTENDANCE);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [editRecord, setEditRecord] = useState(null);
+  const [toast, setToast] = useState("");
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+
+  const matchesFilters = (r) => {
+    const f = appliedFilters;
+    if (f.campus && r.campus !== f.campus) return false;
+    if (f.trainer && r.trainerName !== f.trainer) return false;
+    if (f.slotSchedule && r.slotSchedule !== f.slotSchedule) return false;
+    return true;
+  };
+
+  const matchesSearch = (r) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    return r.trainerName.toLowerCase().includes(q) || r.employeeId.includes(q);
+  };
+
+  const filteredRows = records.filter((r) => matchesFilters(r) && matchesSearch(r));
+  const runSearch = () => setSearchQuery(searchInput);
+  const handleExport = () => showToast("Export downloaded");
+
+  const handleSaveEdit = (updated) => {
+    setRecords((prev) => prev.map((r) => (r.id === editRecord.id ? { ...r, ...updated } : r)));
+    setEditRecord(null);
+    showToast("Attendance updated");
+  };
+
+  return (
+    <div className="ta-students-page">
+      <div className="ta-students-toolbar">
+        <button className="ta-icon-only-btn" title="View options">
+          <Icon path={ICONS.sliders} size={16} />
+        </button>
+        <button className="ta-btn-outline ta-filters-btn" onClick={() => setFiltersOpen(true)}>
+          <Icon path={ICONS.filter} size={15} />
+          Filters
+          {Object.values(appliedFilters).some(Boolean) && <span className="ta-filter-dot" />}
+        </button>
+        <input
+          className="ta-search-input"
+          placeholder="Search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && runSearch()}
+        />
+        <button className="ta-btn-primary" onClick={runSearch}>Search</button>
+        <button className="ta-btn-primary" onClick={handleExport}>Export</button>
+      </div>
+
+      <div className="ta-table-wrap">
+        <table className="ta-table">
+          <thead>
+            <tr>
+              <th>Trainer</th>
+              <th>Slot Schedule</th>
+              <th>Campus</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Duration</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.length === 0 ? (
+              <tr><td colSpan={8}><div className="ta-empty-state"><Icon path={ICONS.inbox} size={42} /><p>No data</p></div></td></tr>
+            ) : (
+              filteredRows.map((r) => (
+                <tr key={r.id}>
+                  <td><span className="ta-link-text">{r.trainerName}</span></td>
+                  <td>{r.slotSchedule}</td>
+                  <td>{r.campus}</td>
+                  <td>
+                    {formatDateTimeLabel(r.checkIn)}
+                    {r.lateMinutes > 0 && <div className="ta-late-tag">Late: {r.lateMinutes}m</div>}
+                  </td>
+                  <td>{formatDateTimeLabel(r.checkOut)}</td>
+                  <td>{durationLabel(r.checkIn, r.checkOut)}</td>
+                  <td><span className="ta-badge ta-badge-gray">{r.status}</span></td>
+                  <td>
+                    <button className="ta-icon-action" title="Edit" onClick={() => setEditRecord(r)}>
+                      <Icon path={ICONS.pencil} size={15} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {filtersOpen && (
+        <TrainerAttendanceFiltersModal
+          initialValues={appliedFilters}
+          onClose={() => setFiltersOpen(false)}
+          onApply={setAppliedFilters}
+        />
+      )}
+
+      {editRecord && (
+        <TrainerAttendanceEditModal
+          record={editRecord}
+          onClose={() => setEditRecord(null)}
+          onSave={handleSaveEdit}
+        />
+      )}
+
+      {toast && <div className="ta-toast">{toast}</div>}
+    </div>
+  );
+}
+
+/* ---- Trainer Attendance Request (correction requests) ---- */
+
+function AttendanceRequestFormModal({ onClose, onSubmit }) {
+  const [date, setDate] = useState(toYMD(TODAY_REF.getFullYear(), TODAY_REF.getMonth(), TODAY_REF.getDate()));
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [reason, setReason] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({ date, checkIn, checkOut, reason });
+  };
+
+  return (
+    <div className="ta-modal-overlay" onClick={onClose}>
+      <form className="ta-modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+        <div className="ta-modal-header">
+          <h3>Attendance Request</h3>
+          <button type="button" className="ta-modal-close" onClick={onClose}>
+            <Icon path={ICONS.close} size={18} />
+          </button>
+        </div>
+        <div className="ta-modal-body">
+          <div className="ta-filter-field">
+            <label>Date</label>
+            <div className="ta-date-range-wrap">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Icon path={ICONS.calendar} size={15} />
+            </div>
+          </div>
+          <div className="ta-filter-field">
+            <label>Check In</label>
+            <input className="ta-form-input" type="time" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>Check Out</label>
+            <input className="ta-form-input" type="time" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+          </div>
+          <div className="ta-filter-field">
+            <label>Reason</label>
+            <textarea
+              className="ta-updation-textarea"
+              style={{ minHeight: 80 }}
+              placeholder="Enter reason for correction..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="ta-modal-footer">
+          <button type="button" className="ta-btn-outline" onClick={onClose}>Cancel</button>
+          <button type="submit" className="ta-btn-primary">Submit Request</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function TrainerAttendanceRequestPage() {
+  const [requests, setRequests] = useState(SEED_TRAINER_ATTENDANCE_REQUESTS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState({});
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [toast, setToast] = useState("");
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+
+  const handleGenerate = (vals) => {
+    const newReq = {
+      id: nextRequestId++,
+      trainerName: "Sir ARSLAN AHMED (SUK)",
+      campus: "Saylani TITAN Sukkur Campus",
+      schedule: "Sat 08:00 AM - 10:00 AM | Sun 08:00 AM - 10:00 AM",
+      checkIn: vals.checkIn,
+      checkOut: vals.checkOut,
+      type: "Correction",
+      status: "pending",
+    };
+    setRequests((prev) => [newReq, ...prev]);
+    setGenerateOpen(false);
+    showToast("Request submitted");
+  };
+
+  return (
+    <div className="ta-students-page">
+      <div className="ta-students-toolbar">
+        <button className="ta-icon-only-btn" title="View options">
+          <Icon path={ICONS.sliders} size={16} />
+        </button>
+        <button className="ta-btn-outline ta-filters-btn" onClick={() => setFiltersOpen(true)}>
+          <Icon path={ICONS.filter} size={15} />
+          Filters
+          {Object.values(appliedFilters).some(Boolean) && <span className="ta-filter-dot" />}
+        </button>
+        <div style={{ flex: 1 }} />
+        <button className="ta-btn-primary" onClick={() => showToast("Searched")}>Search</button>
+        <button className="ta-btn-primary ta-generate-request-btn" onClick={() => setGenerateOpen(true)}>
+          Generate Request
+        </button>
+      </div>
+
+      <div className="ta-table-wrap">
+        <table className="ta-table">
+          <thead>
+            <tr>
+              <th style={{ width: 32 }}><input type="checkbox" /></th>
+              <th>Trainer</th>
+              <th>Campus</th>
+              <th>Schedule</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {requests.length === 0 ? (
+              <tr><td colSpan={9}><div className="ta-empty-state"><Icon path={ICONS.inbox} size={42} /><p>No data</p></div></td></tr>
+            ) : (
+              requests.map((r) => (
+                <tr key={r.id}>
+                  <td><input type="checkbox" /></td>
+                  <td>{r.trainerName}</td>
+                  <td>{r.campus}</td>
+                  <td>{r.schedule}</td>
+                  <td>{r.checkIn || "—"}</td>
+                  <td>{r.checkOut || "—"}</td>
+                  <td>{r.type}</td>
+                  <td><span className="ta-badge ta-badge-orange">{r.status}</span></td>
+                  <td>—</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {filtersOpen && (
+        <TrainerAttendanceFiltersModal
+          initialValues={appliedFilters}
+          onClose={() => setFiltersOpen(false)}
+          onApply={setAppliedFilters}
+        />
+      )}
+
+      {generateOpen && (
+        <AttendanceRequestFormModal
+          onClose={() => setGenerateOpen(false)}
+          onSubmit={handleGenerate}
+        />
+      )}
+
+      {toast && <div className="ta-toast">{toast}</div>}
+    </div>
+  );
+}
 
 const SLOT_DAYS = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 const SLOT_TRAINERS = ["Shehzad Iqbal", "Miss Muskan", "Shumaila Shiwani", "Miss Hanifa Asad", "Waqas Ahmed", "Sana Malik", "Faisal Raza"];
@@ -2507,7 +3285,16 @@ const NAV_ITEMS = [
     type: "group",
     children: [
       { key: "trainers", label: "Trainers" },
-      { key: "trainer-attendance", label: "Attendance" },
+      {
+        key: "trainer-attendance-subgroup",
+        label: "Attendance",
+        type: "subgroup",
+        children: [
+          { key: "mark-trainer-attendance", label: "Mark Attendance" },
+          { key: "view-trainer-attendance", label: "View Attendance" },
+          { key: "trainer-attendance-request", label: "Attendance Request" },
+        ],
+      },
     ],
   },
   { key: "updation", label: "Updation", icon: ICONS.refresh, type: "link" },
@@ -2518,16 +3305,29 @@ function findActiveNavLabel(activePage) {
   for (const item of NAV_ITEMS) {
     if (item.type === "link" && item.key === activePage) return item.label;
     if (item.type === "group") {
-      const child = item.children.find((c) => c.key === activePage);
-      if (child) return child.label;
+      for (const child of item.children) {
+        if (child.type === "subgroup") {
+          const sub = child.children.find((sc) => sc.key === activePage);
+          if (sub) return sub.label;
+        } else if (child.key === activePage) {
+          return child.label;
+        }
+      }
     }
   }
   return "Dashboard";
 }
 
+function navGroupHasActive(item, activePage) {
+  return item.children.some((c) => {
+    if (c.type === "subgroup") return c.children.some((sc) => sc.key === activePage);
+    return c.key === activePage;
+  });
+}
+
 function groupKeyForPage(activePage) {
   for (const item of NAV_ITEMS) {
-    if (item.type === "group" && item.children.some((c) => c.key === activePage)) {
+    if (item.type === "group" && navGroupHasActive(item, activePage)) {
       return item.key;
     }
   }
@@ -2549,6 +3349,7 @@ export function AdminDashboard({ user, onLogout }) {
     "attendance-group": true,
     "administration-group": true,
     "trainers-group": true,
+    "trainer-attendance-subgroup": true,
   }));
 
   const toggleSidebar = () => setIsSidebarOpen((p) => !p);
@@ -2620,7 +3421,7 @@ export function AdminDashboard({ user, onLogout }) {
 
         
               const isOpen = !!openGroups[item.key];
-              const groupHasActiveChild = item.children.some((c) => c.key === activePage);
+              const groupHasActiveChild = navGroupHasActive(item, activePage);
 
               return (
                 <div key={item.key} className="ta-nav-group">
@@ -2642,18 +3443,56 @@ export function AdminDashboard({ user, onLogout }) {
 
                   {showLabels && isOpen && (
                     <div className="ta-nav-children">
-                      {item.children.map((child) => (
-                        <div
-                          key={child.key}
-                          className={`ta-nav-item ta-nav-child ${activePage === child.key ? "active" : ""}`}
-                          onClick={() => {
-                            setActivePage(child.key);
-                            setIsMobileOpen(false);
-                          }}
-                        >
-                          <span>{child.label}</span>
-                        </div>
-                      ))}
+                      {item.children.map((child) => {
+                        if (child.type === "subgroup") {
+                          const subOpen = !!openGroups[child.key];
+                          const subHasActive = child.children.some((sc) => sc.key === activePage);
+                          return (
+                            <div key={child.key} className="ta-nav-group">
+                              <div
+                                className={`ta-nav-subgroup-header ${subHasActive ? "active" : ""}`}
+                                onClick={() => toggleGroup(child.key)}
+                              >
+                                <span>{child.label}</span>
+                                <span
+                                  className="ta-nav-chevron"
+                                  style={{ transform: subOpen ? "rotate(180deg)" : "rotate(0deg)" }}
+                                >
+                                  <Icon path={ICONS.chevronDown} size={12} />
+                                </span>
+                              </div>
+                              {subOpen && (
+                                <div className="ta-nav-subchildren">
+                                  {child.children.map((sc) => (
+                                    <div
+                                      key={sc.key}
+                                      className={`ta-nav-item ta-nav-subchild ${activePage === sc.key ? "active" : ""}`}
+                                      onClick={() => {
+                                        setActivePage(sc.key);
+                                        setIsMobileOpen(false);
+                                      }}
+                                    >
+                                      <span>{sc.label}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div
+                            key={child.key}
+                            className={`ta-nav-item ta-nav-child ${activePage === child.key ? "active" : ""}`}
+                            onClick={() => {
+                              setActivePage(child.key);
+                              setIsMobileOpen(false);
+                            }}
+                          >
+                            <span>{child.label}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2717,12 +3556,27 @@ export function AdminDashboard({ user, onLogout }) {
           {activePage === "students" && <StudentsPage />}
           {activePage === "mark-attendance" && <MarkAttendancePage />}
           {activePage === "view-attendance" && <ViewAttendancePage />}
-          {activePage === "trainer-attendance" && <TrainerAttendancePage />}
+          {activePage === "trainers" && <TrainersListPage />}
+          {activePage === "mark-trainer-attendance" && <MarkTrainerAttendancePage />}
+          {activePage === "view-trainer-attendance" && <ViewTrainerAttendancePage />}
+          {activePage === "trainer-attendance-request" && <TrainerAttendanceRequestPage />}
           {activePage === "administration" && <SlotsPage />}
           {activePage === "updation" && <UpdationPage />}
           {activePage === "profile" && <ProfilePage user={user} onLogout={onLogout} />}
 
-          {!["dashboard", "students", "mark-attendance", "view-attendance", "trainer-attendance", "administration", "updation", "profile"].includes(activePage) && (
+          {![
+            "dashboard",
+            "students",
+            "mark-attendance",
+            "view-attendance",
+            "trainers",
+            "mark-trainer-attendance",
+            "view-trainer-attendance",
+            "trainer-attendance-request",
+            "administration",
+            "updation",
+            "profile",
+          ].includes(activePage) && (
             <div className="ta-panel ta-coming-soon">
               <h3>{activeNavLabel}</h3>
               <p>This section is coming soon.</p>
