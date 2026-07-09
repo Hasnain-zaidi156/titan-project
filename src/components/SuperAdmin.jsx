@@ -1,15 +1,85 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
 
 import "./SuperAdmin.css";
 
 const TITAN_LOGO = "https://i.ibb.co/q3c3CkLS/titan-logo.jpg";
 
-// Same email, password decides role (note the capital H for Sub Admin)
+/* =========================================================================
+   AUTH — DEMO ONLY
+   -------------------------------------------------------------------------
+   These credentials live in the JS bundle, so anyone can read them from
+   devtools / "View Source". This is fine for a local demo but is NOT real
+   auth. Before this goes anywhere near production:
+     1. Move login to a real backend (Firebase Auth, a JWT-issuing API, etc).
+     2. Never distinguish roles by password case (the old version used
+        "2008hasnain" vs "2008Hasnain" — a stray Caps Lock silently logs
+        someone into the wrong role). Roles are now separate usernames.
+   ========================================================================= */
 const ADMIN_USERS = [
-  { email: "drzaidi156@gmail.com", password: "2008hasnain", role: "Super Admin" },
-  { email: "drzaidi156@gmail.com", password: "2008Hasnain", role: "Sub Admin" },
+  { email: "superadmin@titan.edu", password: "2008hasnain", role: "Super Admin" },
+  { email: "subadmin@titan.edu", password: "2008hasnain", role: "Sub Admin" },
 ];
 
+/* ---- small shared utilities -------------------------------------------- */
+
+// Safe incremental id generator: derives the next id from the current list
+// instead of relying on a module-level mutable counter (which can drift or
+// get reused twice under React StrictMode's double-invoke in dev).
+function nextId(list) {
+  return list.length ? Math.max(...list.map((x) => x.id)) + 1 : 1;
+}
+
+// Closes a modal / popover on Escape. Usage: useEscapeKey(onClose)
+function useEscapeKey(onClose) {
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+}
+
+// Shared toast-stack hook so multiple toasts can queue instead of the
+// newest one silently replacing whatever was already on screen.
+function useToasts() {
+  const [toasts, setToasts] = useState([]);
+  const idRef = useRef(1);
+
+  const showToast = useCallback((message, variant = "default") => {
+    const id = idRef.current++;
+    setToasts((prev) => [...prev, { id, message, variant }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 2500);
+  }, []);
+
+  return { toasts, showToast };
+}
+
+function ToastStack({ toasts }) {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="ta-toast-stack" role="status" aria-live="polite">
+      {toasts.map((t) => (
+        <div key={t.id} className={`ta-toast ${t.variant === "error" ? "ta-toast-error" : ""}`}>
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// "Today" for demo/attendance purposes. Uses the real current date rather
+// than a hardcoded value, so calendars and stats stay correct as time
+// passes. If you ever need a fixed date for testing, swap the line below,
+// but don't ship a hardcoded date.
+function getToday() {
+  return new Date();
+}
+const TODAY_REF = getToday();
 
 const Icon = ({ path, size = 18 }) => (
   <svg
@@ -21,6 +91,8 @@ const Icon = ({ path, size = 18 }) => (
     strokeWidth="1.8"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
   >
     {path}
   </svg>
@@ -220,27 +292,33 @@ const ICONS = {
   chevronRight: <polyline points="9 18 15 12 9 6" />,
 };
 
-
 export function AdminLogin({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleLogin = (e) => {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
 
     const matchedUser = ADMIN_USERS.find(
-      (u) => u.email === email.trim() && u.password === password
+      (u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password
     );
 
-    if (matchedUser) {
-      onLoginSuccess(matchedUser);
-    } else {
-      setError("Invalid email or password.");
-    }
+    // Tiny delay so the button's disabled state is visible — stand-in for
+    // a real network round trip once this is wired to a backend.
+    setTimeout(() => {
+      setSubmitting(false);
+      if (matchedUser) {
+        onLoginSuccess(matchedUser);
+      } else {
+        setError("Invalid email or password.");
+      }
+    }, 250);
   };
 
   return (
@@ -249,7 +327,7 @@ export function AdminLogin({ onLoginSuccess }) {
         <form className="ta-login-card" onSubmit={handleLogin}>
           <div className="ta-logo-wrap">
             <div className="ta-logo-ring">
-              <img src={TITAN_LOGO} alt="TITAN" />
+              <img src={TITAN_LOGO} alt="TITAN Institute logo" />
             </div>
             <p className="ta-portal-label">Titan Institute</p>
             <h1 className="ta-portal-title">Admin Portal</h1>
@@ -257,34 +335,39 @@ export function AdminLogin({ onLoginSuccess }) {
           </div>
 
           <div className="ta-field">
-            <label>Email Address</label>
+            <label htmlFor="ta-login-email">Email Address</label>
             <div className="ta-input-wrap">
               <Icon path={ICONS.mail} />
               <input
+                id="ta-login-email"
                 type="email"
                 placeholder="you@titan.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
                 required
               />
             </div>
           </div>
 
           <div className="ta-field">
-            <label>Password</label>
+            <label htmlFor="ta-login-password">Password</label>
             <div className="ta-input-wrap">
               <Icon path={ICONS.lock} />
               <input
+                id="ta-login-password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 required
               />
               <button
                 type="button"
                 className="ta-eye-btn"
                 onClick={() => setShowPassword((p) => !p)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 <Icon path={showPassword ? ICONS.eyeOff : ICONS.eye} size={16} />
               </button>
@@ -303,10 +386,14 @@ export function AdminLogin({ onLoginSuccess }) {
             <a className="ta-forgot" href="#">Forgot password?</a>
           </div>
 
-          {error && <div className="ta-error">{error}</div>}
+          {error && (
+            <div className="ta-error" role="alert">
+              {error}
+            </div>
+          )}
 
-          <button type="submit" className="ta-submit">
-            SIGN IN
+          <button type="submit" className="ta-submit" disabled={submitting}>
+            {submitting ? "SIGNING IN…" : "SIGN IN"}
           </button>
 
           <p className="ta-login-footer">TITAN Institute &copy; 2026 — Secure Admin Access</p>
@@ -315,7 +402,6 @@ export function AdminLogin({ onLoginSuccess }) {
     </div>
   );
 }
-
 
 const STATUS_OPTIONS = [
   "pending",
@@ -370,17 +456,14 @@ const TABLE_COLUMNS = [
   "Action",
 ];
 
-let nextStudentId = 4;
-let nextInvoiceSeq = 844227;
-
 const SEED_STUDENTS = [
   {
     id: 1,
     admissionNo: "ADM844226",
     studentName: "Muhammad Hassan",
     fatherName: "Muhammad Afzal",
-    cnic: "4550408050073",
-    phone: "03103589178",
+    cnic: "45504-0805007-3",
+    phone: "0310-3589178",
     course: "Mobile App Development",
     status: "enrolled",
     paymentStatus: "Not Generated",
@@ -408,8 +491,8 @@ const SEED_STUDENTS = [
     admissionNo: "ADM844227",
     studentName: "Ayesha Khan",
     fatherName: "Imran Khan",
-    cnic: "4520112345678",
-    phone: "03001234567",
+    cnic: "45201-1234567-8",
+    phone: "0300-1234567",
     course: "Graphic Designing",
     status: "pending",
     paymentStatus: "Pending",
@@ -427,8 +510,8 @@ const SEED_STUDENTS = [
     admissionNo: "ADM844228",
     studentName: "Bilal Ahmed",
     fatherName: "Tariq Ahmed",
-    cnic: "4510098765432",
-    phone: "03211234567",
+    cnic: "45100-9876543-2",
+    phone: "0321-1234567",
     course: "Web Development",
     status: "completed",
     paymentStatus: "Paid",
@@ -470,6 +553,20 @@ const EMPTY_FORM = {
   laptop: "No",
 };
 
+// Pakistani CNIC: 12345-1234567-1 (dashes optional while typing).
+const CNIC_PATTERN = /^\d{5}-?\d{7}-?\d{1}$/;
+// Pakistani mobile: 03XX-XXXXXXX (dash optional).
+const PHONE_PATTERN = /^03\d{2}-?\d{7}$/;
+
+function validateStudentForm(form) {
+  const errors = {};
+  if (!form.studentName.trim()) errors.studentName = "Required";
+  if (!form.fatherName.trim()) errors.fatherName = "Required";
+  if (!CNIC_PATTERN.test(form.cnic.trim())) errors.cnic = "Format: 00000-0000000-0";
+  if (!PHONE_PATTERN.test(form.phone.trim())) errors.phone = "Format: 03XXXXXXXXX";
+  return errors;
+}
+
 function statusBadgeClass(status) {
   const s = (status || "").toLowerCase();
   if (["enrolled", "approved", "passed"].includes(s)) return "ta-badge-blue";
@@ -485,34 +582,54 @@ function paymentBadgeClass(status) {
   return "ta-badge-red";
 }
 
-function FilterSelect({ field, value, onChange }) {
+/* =========================================================================
+   CustomSelect — one reusable dropdown used everywhere a styled <select>
+   is needed (Filters modal, Updation page). Replaces what used to be two
+   near-identical components (FilterSelect + UpdationDropdown).
+   ========================================================================= */
+function CustomSelect({ label, value, placeholder, options, onChange, allowClear = true }) {
   const [open, setOpen] = useState(false);
+  const shownPlaceholder = placeholder || label;
 
   return (
     <div className="ta-filter-field">
-      <label>{field.label}</label>
-      <div className="ta-select-wrap" onClick={() => setOpen((p) => !p)}>
-        <span className={value ? "" : "ta-select-placeholder"}>
-          {value || field.label}
-        </span>
+      {label && <label>{label}</label>}
+      <div
+        className="ta-select-wrap"
+        onClick={() => setOpen((p) => !p)}
+        role="button"
+        tabIndex={0}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((p) => !p);
+          }
+          if (e.key === "Escape") setOpen(false);
+        }}
+      >
+        <span className={value ? "" : "ta-select-placeholder"}>{value || shownPlaceholder}</span>
         <Icon path={ICONS.chevronDown} size={15} />
         {open && (
           <>
             <div className="ta-select-backdrop" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
-            <div className="ta-select-menu">
-              <div
-                className="ta-select-option ta-select-option-clear"
-                onClick={(e) => { e.stopPropagation(); onChange(""); setOpen(false); }}
-              >
-                {field.label}
-              </div>
-              {field.options.length === 0 && (
-                <div className="ta-select-empty">No options</div>
+            <div className="ta-select-menu" role="listbox">
+              {allowClear && (
+                <div
+                  className="ta-select-option ta-select-option-clear"
+                  onClick={(e) => { e.stopPropagation(); onChange(""); setOpen(false); }}
+                >
+                  {shownPlaceholder}
+                </div>
               )}
-              {field.options.map((opt) => (
+              {options.length === 0 && <div className="ta-select-empty">No options</div>}
+              {options.map((opt) => (
                 <div
                   key={opt}
                   className="ta-select-option"
+                  role="option"
+                  aria-selected={value === opt}
                   onClick={(e) => {
                     e.stopPropagation();
                     onChange(opt);
@@ -532,15 +649,16 @@ function FilterSelect({ field, value, onChange }) {
 
 function FiltersModal({ onClose, onApply, initialValues }) {
   const [values, setValues] = useState(initialValues || {});
+  useEscapeKey(onClose);
 
   const setField = (key, val) => setValues((v) => ({ ...v, [key]: val }));
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <div className="ta-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="ta-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Filters">
         <div className="ta-modal-header">
           <h3>Filters</h3>
-          <button className="ta-modal-close" onClick={onClose}>
+          <button className="ta-modal-close" onClick={onClose} aria-label="Close filters">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -551,12 +669,14 @@ function FiltersModal({ onClose, onApply, initialValues }) {
             <div className="ta-date-range-wrap">
               <input
                 type="date"
+                aria-label="Start date"
                 value={values.startDate || ""}
                 onChange={(e) => setField("startDate", e.target.value)}
               />
               <span style={{ color: "var(--ta-text-muted)", fontSize: "11px" }}>to</span>
               <input
                 type="date"
+                aria-label="End date"
                 value={values.endDate || ""}
                 onChange={(e) => setField("endDate", e.target.value)}
               />
@@ -565,10 +685,11 @@ function FiltersModal({ onClose, onApply, initialValues }) {
           </div>
 
           {FILTER_FIELDS.slice(1).map((field) => (
-            <FilterSelect
+            <CustomSelect
               key={field.key}
-              field={field}
+              label={field.label}
               value={values[field.key]}
+              options={field.options}
               onChange={(val) => setField(field.key, val)}
             />
           ))}
@@ -602,23 +723,25 @@ function FiltersModal({ onClose, onApply, initialValues }) {
 
 function StudentFormModal({ title, initialValues, onClose, onSave }) {
   const [form, setForm] = useState(initialValues || EMPTY_FORM);
+  const [errors, setErrors] = useState({});
+  useEscapeKey(onClose);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.studentName.trim() || !form.fatherName.trim() || !form.cnic.trim() || !form.phone.trim()) {
-      return;
-    }
+    const nextErrors = validateStudentForm(form);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     onSave(form);
   };
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <form className="ta-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form className="ta-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit} role="dialog" aria-modal="true" aria-label={title}>
         <div className="ta-modal-header">
           <h3>{title}</h3>
-          <button type="button" className="ta-modal-close" onClick={onClose}>
+          <button type="button" className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -634,11 +757,25 @@ function StudentFormModal({ title, initialValues, onClose, onSave }) {
           </div>
           <div className="ta-filter-field">
             <label>CNIC *</label>
-            <input className="ta-form-input" required value={form.cnic} onChange={(e) => set("cnic", e.target.value)} placeholder="00000-0000000-0" />
+            <input
+              className={`ta-form-input ${errors.cnic ? "ta-form-input-error" : ""}`}
+              required
+              value={form.cnic}
+              onChange={(e) => set("cnic", e.target.value)}
+              placeholder="00000-0000000-0"
+            />
+            {errors.cnic && <p className="ta-field-error-msg">{errors.cnic}</p>}
           </div>
           <div className="ta-filter-field">
             <label>Phone *</label>
-            <input className="ta-form-input" required value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="03XXXXXXXXX" />
+            <input
+              className={`ta-form-input ${errors.phone ? "ta-form-input-error" : ""}`}
+              required
+              value={form.phone}
+              onChange={(e) => set("phone", e.target.value)}
+              placeholder="03XX-XXXXXXX"
+            />
+            {errors.phone && <p className="ta-field-error-msg">{errors.phone}</p>}
           </div>
           <div className="ta-filter-field">
             <label>Country</label>
@@ -712,6 +849,7 @@ function StudentFormModal({ title, initialValues, onClose, onSave }) {
 }
 
 function ViewStudentModal({ student, onClose }) {
+  useEscapeKey(onClose);
   const FIELDS = [
     ["Admission No", student.admissionNo],
     ["Student name", student.studentName],
@@ -732,10 +870,10 @@ function ViewStudentModal({ student, onClose }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <div className="ta-modal ta-view-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="ta-modal ta-view-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Student details">
         <div className="ta-modal-header">
           <h3>Student Details</h3>
-          <button className="ta-modal-close" onClick={onClose}>
+          <button className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -757,13 +895,14 @@ function ViewStudentModal({ student, onClose }) {
 
 function PaymentsModal({ student, onClose, onGenerate, onMarkPaid }) {
   const [month, setMonth] = useState("");
+  useEscapeKey(onClose);
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <div className="ta-modal ta-payments-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="ta-modal ta-payments-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Payments for ${student.studentName}`}>
         <div className="ta-modal-header">
           <h3>Payments — {student.studentName}</h3>
-          <button className="ta-modal-close" onClick={onClose}>
+          <button className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -812,6 +951,7 @@ function PaymentsModal({ student, onClose, onGenerate, onMarkPaid }) {
                           type="button"
                           className="ta-icon-action"
                           title="Mark as paid"
+                          aria-label="Mark as paid"
                           onClick={() => onMarkPaid(i)}
                         >
                           <Icon path={ICONS.check} size={15} />
@@ -839,6 +979,7 @@ function PaymentsModal({ student, onClose, onGenerate, onMarkPaid }) {
           <button
             type="button"
             className="ta-btn-primary ta-generate-btn"
+            disabled={!month}
             onClick={() => {
               if (!month) return;
               onGenerate(month);
@@ -854,8 +995,9 @@ function PaymentsModal({ student, onClose, onGenerate, onMarkPaid }) {
 }
 
 function ConfirmPopover({ message, onCancel, onConfirm }) {
+  useEscapeKey(onCancel);
   return (
-    <div className="ta-confirm-popover" onClick={(e) => e.stopPropagation()}>
+    <div className="ta-confirm-popover" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true">
       <div className="ta-confirm-popover-msg">
         <Icon path={ICONS.alert} size={15} />
         <span>{message}</span>
@@ -876,17 +1018,12 @@ function StudentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [toast, setToast] = useState("");
+  const { toasts, showToast } = useToasts();
 
-  const [formModal, setFormModal] = useState(null); 
+  const [formModal, setFormModal] = useState(null);
   const [viewStudent, setViewStudent] = useState(null);
   const [paymentsStudent, setPaymentsStudent] = useState(null);
-  const [confirmFor, setConfirmFor] = useState(null); 
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
-  };
+  const [confirmFor, setConfirmFor] = useState(null);
 
   const matchesFilters = (s) => {
     const f = appliedFilters;
@@ -945,14 +1082,11 @@ function StudentsPage() {
   };
 
   const handleAddStudent = (form) => {
-    const admissionNo = `ADM${nextInvoiceSeq++}`;
-    const newStudent = {
-      id: nextStudentId++,
-      admissionNo,
-      ...form,
-      invoices: [],
-    };
-    setStudents((prev) => [newStudent, ...prev]);
+    setStudents((prev) => {
+      const id = nextId(prev);
+      const admissionNo = `ADM${900000 + id}`;
+      return [{ id, admissionNo, ...form, invoices: [] }, ...prev];
+    });
     setFormModal(null);
     showToast("Student added");
   };
@@ -971,7 +1105,7 @@ function StudentsPage() {
     showToast("Student deleted");
   };
 
-  const handleSendEmail = (id) => {
+  const handleSendEmail = () => {
     setConfirmFor(null);
     showToast("Email sent");
   };
@@ -981,43 +1115,48 @@ function StudentsPage() {
   };
 
   const handleGenerateInvoice = (month) => {
+    if (!paymentsStudent) return;
+    const newInvoice = {
+      invoiceNumber: paymentsStudent.admissionNo,
+      jazzCashId: "",
+      type: "Registration",
+      month,
+      dueDate: "10-" + month,
+      amount: 1000,
+      status: "PENDING",
+    };
     setStudents((prev) =>
-      prev.map((s) => {
-        if (s.id !== paymentsStudent.id) return s;
-        const newInvoice = {
-          invoiceNumber: s.admissionNo,
-          jazzCashId: "",
-          type: "Registration",
-          month,
-          dueDate: "10-" + month,
-          amount: 1000,
-          status: "PENDING",
-        };
-        const updated = { ...s, invoices: [...s.invoices, newInvoice], paymentStatus: "Pending" };
-        setPaymentsStudent(updated);
-        return updated;
-      })
+      prev.map((s) =>
+        s.id === paymentsStudent.id
+          ? { ...s, invoices: [...s.invoices, newInvoice], paymentStatus: "Pending" }
+          : s
+      )
     );
+    setPaymentsStudent((prev) => (prev ? { ...prev, invoices: [...prev.invoices, newInvoice], paymentStatus: "Pending" } : prev));
     showToast("Invoice generated");
   };
 
   const handleMarkPaid = (invIdx) => {
+    if (!paymentsStudent) return;
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id !== paymentsStudent.id) return s;
         const invoices = s.invoices.map((inv, i) => (i === invIdx ? { ...inv, status: "PAID" } : inv));
-        const updated = { ...s, invoices, paymentStatus: "Paid" };
-        setPaymentsStudent(updated);
-        return updated;
+        return { ...s, invoices, paymentStatus: "Paid" };
       })
     );
+    setPaymentsStudent((prev) => {
+      if (!prev) return prev;
+      const invoices = prev.invoices.map((inv, i) => (i === invIdx ? { ...inv, status: "PAID" } : inv));
+      return { ...prev, invoices, paymentStatus: "Paid" };
+    });
     showToast("Marked as paid");
   };
 
   return (
     <div className="ta-students-page">
       <div className="ta-students-toolbar">
-        <button className="ta-icon-only-btn" title="View options">
+        <button className="ta-icon-only-btn" title="View options" aria-label="View options">
           <Icon path={ICONS.sliders} size={16} />
         </button>
 
@@ -1031,6 +1170,7 @@ function StudentsPage() {
           className="ta-search-input"
           type="text"
           placeholder="Search"
+          aria-label="Search students"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -1086,15 +1226,16 @@ function StudentsPage() {
                   </td>
                   <td>
                     <div className="ta-action-row">
-                      <button className="ta-icon-action" title="View" onClick={() => setViewStudent(s)}>
+                      <button className="ta-icon-action" title="View" aria-label={`View ${s.studentName}`} onClick={() => setViewStudent(s)}>
                         <Icon path={ICONS.eye} size={15} />
                       </button>
-                      <button className="ta-icon-action" title="Payments" onClick={() => setPaymentsStudent(s)}>
+                      <button className="ta-icon-action" title="Payments" aria-label={`Payments for ${s.studentName}`} onClick={() => setPaymentsStudent(s)}>
                         <Icon path={ICONS.receipt} size={15} />
                       </button>
                       <button
                         className="ta-icon-action"
                         title="Edit"
+                        aria-label={`Edit ${s.studentName}`}
                         onClick={() => setFormModal({ mode: "edit", student: s })}
                       >
                         <Icon path={ICONS.pencil} size={15} />
@@ -1103,6 +1244,7 @@ function StudentsPage() {
                         <button
                           className="ta-icon-action"
                           title="Send email"
+                          aria-label={`Send email to ${s.studentName}`}
                           onClick={() => setConfirmFor({ id: s.id, action: "send" })}
                         >
                           <Icon path={ICONS.send} size={15} />
@@ -1111,17 +1253,18 @@ function StudentsPage() {
                           <ConfirmPopover
                             message="Sure to send email again?"
                             onCancel={() => setConfirmFor(null)}
-                            onConfirm={() => handleSendEmail(s.id)}
+                            onConfirm={handleSendEmail}
                           />
                         )}
                       </div>
-                      <button className="ta-icon-action" title="Download" onClick={() => handleDownloadRow(s)}>
+                      <button className="ta-icon-action" title="Download" aria-label={`Download record for ${s.studentName}`} onClick={() => handleDownloadRow(s)}>
                         <Icon path={ICONS.download} size={15} />
                       </button>
                       <div className="ta-action-popover-anchor">
                         <button
                           className="ta-icon-action ta-icon-action-danger"
                           title="Delete"
+                          aria-label={`Delete ${s.studentName}`}
                           onClick={() => setConfirmFor({ id: s.id, action: "delete" })}
                         >
                           <Icon path={ICONS.trash} size={15} />
@@ -1152,6 +1295,7 @@ function StudentsPage() {
             <button
               className="ta-page-btn"
               disabled={safePage <= 1}
+              aria-label="Previous page"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               <Icon path={ICONS.chevronLeft} size={14} />
@@ -1160,12 +1304,14 @@ function StudentsPage() {
             <button
               className="ta-page-btn"
               disabled={safePage >= totalPages}
+              aria-label="Next page"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
               <Icon path={ICONS.chevronRight} size={14} />
             </button>
             <select
               className="ta-page-size-select"
+              aria-label="Rows per page"
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
             >
@@ -1216,21 +1362,20 @@ function StudentsPage() {
         />
       )}
 
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
 
-
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const CLASS_WEEKDAYS = [2, 4]; // Tuesday & Thursday are scheduled class days
-const TODAY_REF = new Date(2026, 5, 14); // reference "today" used to decide past/future days
 
 function pad2(n) { return String(n).padStart(2, "0"); }
 function toYMD(y, m, d) { return `${y}-${pad2(m + 1)}-${pad2(d)}`; }
 function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 function firstWeekdayOfMonth(y, m) { return new Date(y, m, 1).getDay(); }
+function isSameYMD(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
 const ATTENDANCE_STUDENTS = [
   {
@@ -1265,20 +1410,11 @@ const ATTENDANCE_STUDENTS = [
   },
 ];
 
-const TRAINERS_LIST = [
-  { id: 1, name: "Waqas Ahmed", subject: "Web Development", campus: "TITAN Sukkur Campus" },
-  { id: 2, name: "Sana Malik", subject: "Graphic Designing", campus: "TITAN Karachi Campus" },
-  { id: 3, name: "Faisal Raza", subject: "Digital Marketing", campus: "TITAN Lahore Campus" },
-];
-
 /* ---------------------------------------------------------------
    Trainer directory + Trainer attendance (scan card / view / request)
-   — matches admin.saylanimit.com Trainers section screenshots
 ------------------------------------------------------------------ */
 
 const TRAINER_STATUS_OPTIONS = ["Active", "Inactive"];
-
-let nextTrainerId = 4;
 
 const TRAINERS_FULL_LIST = [
   {
@@ -1315,8 +1451,6 @@ const TRAINERS_FULL_LIST = [
     status: "Active",
   },
 ];
-
-let nextTrainerAttendanceId = 4;
 
 const SEED_TRAINER_ATTENDANCE = [
   {
@@ -1355,7 +1489,6 @@ const SEED_TRAINER_ATTENDANCE = [
 ];
 
 const SEED_TRAINER_ATTENDANCE_REQUESTS = [];
-let nextRequestId = 1;
 
 function parseScheduleTimes(schedule) {
   if (!schedule) return [];
@@ -1429,23 +1562,16 @@ function dayStatus(record, dateStr, dateObj) {
   return "none";
 }
 
-const DAY_STATUS_STYLE = {
-  present: { background: "#e3f5e9", color: "#1e7a44" },
-  leave: { background: "#fbeed9", color: "#95661b" },
-  absent: { background: "#fbdee0", color: "#a3273a" },
-  none: { background: "transparent", color: "var(--ta-text-muted)" },
-};
-
-
 function LeaveReasonModal({ onCancel, onConfirm }) {
   const [reason, setReason] = useState("");
+  useEscapeKey(onCancel);
 
   return (
     <div className="ta-modal-overlay" onClick={onCancel}>
-      <div className="ta-modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+      <div className="ta-modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Reason for leave">
         <div className="ta-modal-header">
           <h3>Reason for leave</h3>
-          <button className="ta-modal-close" onClick={onCancel}>
+          <button className="ta-modal-close" onClick={onCancel} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -1472,6 +1598,7 @@ function AttendanceDetailsModal({ record, onClose, onMarkLeave }) {
   const [year, setYear] = useState(TODAY_REF.getFullYear());
   const [month, setMonth] = useState(TODAY_REF.getMonth());
   const [pendingDate, setPendingDate] = useState(null);
+  useEscapeKey(onClose);
 
   const stats = attendanceStats(record);
 
@@ -1492,51 +1619,65 @@ function AttendanceDetailsModal({ record, onClose, onMarkLeave }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <div className="ta-modal" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+      <div className="ta-modal ta-attendance-details-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Attendance details">
         <div className="ta-modal-header">
           <h3>Attendance Details</h3>
-          <button className="ta-modal-close" onClick={onClose}>
+          <button className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
 
-        <div className="ta-modal-body">
-          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-            <span><strong>Student Name :</strong> {record.studentName}</span>
-            <span><strong>Roll Number :</strong> {record.rollNumber}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-            <span><strong>Total Classes :</strong> {record.totalClasses}</span>
-            <span><strong>Present - Leave - Absent :</strong> {stats.present}/{stats.leave}/{stats.absent}</span>
-            <span><strong>Attendance Percentage :</strong> {stats.percentage.toFixed(2)}</span>
+        <div className="ta-modal-body ta-attendance-details-body">
+          <div className="ta-attendance-identity-row">
+            <span><strong>Student Name:</strong> {record.studentName}</span>
+            <span><strong>Roll Number:</strong> {record.rollNumber}</span>
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <button className="ta-icon-action" onClick={() => changeMonth(-1)}>
+          <div className="ta-attendance-summary-cards">
+            <div className="ta-attendance-summary-card">
+              <p className="ta-attendance-summary-label">Total Classes</p>
+              <p className="ta-attendance-summary-value">{record.totalClasses}</p>
+            </div>
+            <div className="ta-attendance-summary-card">
+              <p className="ta-attendance-summary-label">Present · Leave · Absent</p>
+              <p className="ta-attendance-summary-value ta-attendance-summary-pla">
+                <span className="ta-pla-present">{stats.present}</span>
+                <span className="ta-pla-sep">/</span>
+                <span className="ta-pla-leave">{stats.leave}</span>
+                <span className="ta-pla-sep">/</span>
+                <span className="ta-pla-absent">{stats.absent}</span>
+              </p>
+            </div>
+            <div className="ta-attendance-summary-card">
+              <p className="ta-attendance-summary-label">Attendance %</p>
+              <p className="ta-attendance-summary-value">{stats.percentage.toFixed(2)}%</p>
+            </div>
+          </div>
+
+          <div className="ta-attendance-calendar-toolbar">
+            <div className="ta-attendance-month-nav">
+              <button className="ta-icon-action" aria-label="Previous month" onClick={() => changeMonth(-1)}>
                 <Icon path={ICONS.chevronLeft} size={14} />
               </button>
-              <select className="ta-form-select" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+              <select className="ta-form-select" aria-label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
                 {[2024, 2025, 2026].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
-              <select className="ta-form-select" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+              <select className="ta-form-select" aria-label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
                 {MONTH_NAMES.map((m, i) => <option key={m} value={i}>{m.slice(0, 3)}</option>)}
               </select>
-              <button className="ta-icon-action" onClick={() => changeMonth(1)}>
+              <button className="ta-icon-action" aria-label="Next month" onClick={() => changeMonth(1)}>
                 <Icon path={ICONS.chevronRight} size={14} />
               </button>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className="ta-attendance-view-toggle-group">
               <button
-                className={viewMode === "Month" ? "ta-btn-primary" : "ta-btn-outline"}
-                style={{ padding: "4px 12px", fontSize: 12 }}
+                className={`ta-view-toggle-btn ${viewMode === "Month" ? "active" : ""}`}
                 onClick={() => setViewMode("Month")}
               >
                 Month
               </button>
               <button
-                className={viewMode === "Year" ? "ta-btn-primary" : "ta-btn-outline"}
-                style={{ padding: "4px 12px", fontSize: 12 }}
+                className={`ta-view-toggle-btn ${viewMode === "Year" ? "active" : ""}`}
                 onClick={() => setViewMode("Year")}
               >
                 Year
@@ -1546,11 +1687,9 @@ function AttendanceDetailsModal({ record, onClose, onMarkLeave }) {
 
           {viewMode === "Month" ? (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+              <div className="ta-cal-grid">
                 {WEEKDAY_LABELS.map((w) => (
-                  <div key={w} style={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: "var(--ta-text-muted)", padding: "4px 0" }}>
-                    {w}
-                  </div>
+                  <div key={w} className="ta-cal-weekday-lbl">{w}</div>
                 ))}
                 {cells.map((d, idx) => {
                   if (!d) return <div key={idx} />;
@@ -1558,27 +1697,28 @@ function AttendanceDetailsModal({ record, onClose, onMarkLeave }) {
                   const dateObj = new Date(year, month, d);
                   const status = dayStatus(record, dateStr, dateObj);
                   const clickable = status === "absent";
+                  const isToday = isSameYMD(dateObj, TODAY_REF);
+                  const classNames = [
+                    "ta-cal-cell",
+                    `ta-cal-cell-${status}`,
+                    clickable ? "ta-cal-cell-clickable" : "",
+                    isToday ? "ta-cal-cell-today" : "",
+                  ].filter(Boolean).join(" ");
                   return (
                     <div
                       key={idx}
+                      className={classNames}
                       onClick={() => clickable && setPendingDate(dateStr)}
-                      style={{
-                        textAlign: "center",
-                        padding: "10px 0",
-                        borderRadius: 6,
-                        fontSize: 13,
-                        cursor: clickable ? "pointer" : "default",
-                        ...DAY_STATUS_STYLE[status],
-                      }}
+                      role={clickable ? "button" : undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      title={isToday ? "Today" : undefined}
                     >
                       {d}
                     </div>
                   );
                 })}
               </div>
-              <p style={{ fontSize: 11, color: "var(--ta-text-muted)", marginTop: 10 }}>
-                Click a red (absent) day to mark it as leave.
-              </p>
+              <p className="ta-attendance-cal-hint">Click a red (absent) day to mark it as leave.</p>
             </>
           ) : (
             <div className="ta-table-wrap">
@@ -1619,93 +1759,152 @@ function AttendanceDetailsModal({ record, onClose, onMarkLeave }) {
   );
 }
 
-
 function MarkAttendancePage() {
-  const [date, setDate] = useState(toYMD(TODAY_REF.getFullYear(), TODAY_REF.getMonth(), TODAY_REF.getDate()));
-  const [statusMap, setStatusMap] = useState(() => {
-    const init = {};
-    ATTENDANCE_STUDENTS.forEach((s) => { init[s.rollNumber] = "present"; });
-    return init;
-  });
-  const [toast, setToast] = useState("");
+  const [rollInput, setRollInput] = useState("");
+  const [studentInfo, setStudentInfo] = useState(null); // { student, history, error }
+  const [feed, setFeed] = useState([]); // recent marks, newest first
+  const { toasts, showToast } = useToasts();
 
-  const setStatus = (rollNumber, value) => setStatusMap((prev) => ({ ...prev, [rollNumber]: value }));
+  const handleMark = () => {
+    const roll = rollInput.trim();
+    if (!roll) return;
 
-  const handleSave = () => {
-    setToast(`Attendance saved for ${date}`);
-    setTimeout(() => setToast(""), 2500);
+    const student = ATTENDANCE_STUDENTS.find((s) => s.rollNumber === roll);
+
+    if (!student) {
+      setStudentInfo({ error: "No student found with this roll number." });
+      return;
+    }
+    if (student.status && student.status !== "active") {
+      setStudentInfo({
+        student,
+        error: `The student exists, but their status is invalid. '${student.status}'`,
+      });
+      return;
+    }
+
+    const now = new Date();
+    const history = (student.attendanceHistory || []).slice();
+
+    setStudentInfo({ student, history, error: null });
+    setFeed((prev) => [{ student, time: now }, ...prev]);
+    showToast(`Attendance marked for ${student.studentName}`);
+    setRollInput("");
   };
 
   return (
-    <div className="ta-students-page">
-      <div className="ta-students-toolbar">
-        <div className="ta-filter-field" style={{ minWidth: 200 }}>
-          <label>Date</label>
-          <div className="ta-date-range-wrap">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <Icon path={ICONS.calendar} size={15} />
+    <div className="ta-attendance-page">
+      <div className="ta-attendance-grid">
+        <div className="ta-attendance-main">
+          <h3>Student Attendance</h3>
+
+          <div className="ta-attendance-scan-input">
+            <div className="ta-input-wrap">
+              <Icon path={ICONS.search} size={15} />
+              <input
+                type="text"
+                placeholder="Scan or Enter Roll Number..."
+                value={rollInput}
+                onChange={(e) => setRollInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleMark()}
+              />
+            </div>
           </div>
+
+          <button className="ta-btn-primary ta-mark-btn" onClick={handleMark}>
+            Mark Attendance
+          </button>
+
+          <div className="ta-attendance-cards">
+            <div className="ta-attendance-card">
+              <h4 className="ta-attendance-card-title">Student Information</h4>
+              {!studentInfo ? (
+                <div className="ta-attendance-placeholder">
+                  Scan or enter a roll number to view student details.
+                </div>
+              ) : studentInfo.error && !studentInfo.student ? (
+                <div className="ta-attendance-placeholder ta-attendance-error">
+                  {studentInfo.error}
+                </div>
+              ) : (
+                <div className="ta-attendance-student">
+                  {studentInfo.student.avatar ? (
+                    <img src={studentInfo.student.avatar} alt={studentInfo.student.studentName} />
+                  ) : (
+                    <Icon path={ICONS.user} size={48} />
+                  )}
+                  <h4>{studentInfo.student.studentName}</h4>
+                  <p className="ta-attendance-roll">Roll Number: {studentInfo.student.rollNumber}</p>
+                  <p className="ta-attendance-course">{studentInfo.student.course}</p>
+                  <p className="ta-attendance-payment">
+                    Payment ({studentInfo.student.paymentMonth || "N/A"}) : {studentInfo.student.paymentStatus || "N/A"}
+                  </p>
+
+                  {studentInfo.error ? (
+                    <div className="ta-attendance-invalid">{studentInfo.error}</div>
+                  ) : (
+                    <div className="ta-attendance-success">
+                      <Icon path={ICONS.check} size={14} /> Attendance Marked
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="ta-attendance-card">
+              <h4 className="ta-attendance-card-title">Attendance History</h4>
+              {!studentInfo || !studentInfo.student || !studentInfo.history?.length ? (
+                <div className="ta-attendance-placeholder">No attendance history found.</div>
+              ) : (
+                <ul className="ta-attendance-history-list">
+                  {studentInfo.history.map((h, i) => (
+                    <li key={i}>{h.label}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="ta-attendance-feed-panel">
+          {feed.length === 0 ? (
+            <div className="ta-attendance-feed-empty">No recent scans yet.</div>
+          ) : (
+            <div className="ta-attendance-feed">
+              {feed.map((f, i) => (
+                <div className="ta-attendance-feed-item" key={i}>
+                  {f.student.avatar ? (
+                    <img src={f.student.avatar} alt={f.student.studentName} />
+                  ) : (
+                    <div className="ta-attendance-feed-avatar ta-attendance-feed-avatar-blank">
+                      {f.student.studentName.charAt(0)}
+                    </div>
+                  )}
+                  <div className="ta-attendance-feed-info">
+                    <p className="ta-attendance-feed-name">
+                      {f.student.studentName} ({f.student.rollNumber})
+                    </p>
+                    <p className="ta-attendance-feed-course">{f.student.course}</p>
+                  </div>
+                  <span className="ta-attendance-feed-time">a few seconds ago</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="ta-table-wrap">
-        <table className="ta-table">
-          <thead>
-            <tr>
-              <th>Roll Number</th>
-              <th>Student Name</th>
-              <th>Course</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ATTENDANCE_STUDENTS.map((s) => (
-              <tr key={s.rollNumber}>
-                <td>{s.rollNumber}</td>
-                <td>{s.studentName}</td>
-                <td>{s.course}</td>
-                <td>
-                  <div style={{ display: "flex", gap: 14 }}>
-                    {["present", "leave", "absent"].map((opt) => (
-                      <label key={opt} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 13, textTransform: "capitalize", cursor: "pointer" }}>
-                        <input
-                          type="radio"
-                          name={`status-${s.rollNumber}`}
-                          checked={statusMap[s.rollNumber] === opt}
-                          onChange={() => setStatus(s.rollNumber, opt)}
-                        />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <button className="ta-btn-primary" onClick={handleSave}>Save Attendance</button>
-      </div>
-
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
-
 
 function ViewAttendancePage() {
   const [records, setRecords] = useState(ATTENDANCE_STUDENTS);
   const [rollInput, setRollInput] = useState("");
   const [query, setQuery] = useState("");
   const [detailsFor, setDetailsFor] = useState(null);
-  const [toast, setToast] = useState("");
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2000);
-  };
+  const { toasts, showToast } = useToasts();
 
   const filtered = records.filter(
     (r) =>
@@ -1733,6 +1932,7 @@ function ViewAttendancePage() {
           className="ta-search-input"
           type="text"
           placeholder="Search by roll number or name"
+          aria-label="Search by roll number or name"
           value={rollInput}
           onChange={(e) => setRollInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -1779,7 +1979,7 @@ function ViewAttendancePage() {
                     <td>{stats.absent}</td>
                     <td>{stats.percentage.toFixed(2)}%</td>
                     <td>
-                      <button className="ta-icon-action" title="View" onClick={() => setDetailsFor(r)}>
+                      <button className="ta-icon-action" title="View" aria-label={`View attendance for ${r.studentName}`} onClick={() => setDetailsFor(r)}>
                         <Icon path={ICONS.eye} size={15} />
                       </button>
                     </td>
@@ -1799,11 +1999,10 @@ function ViewAttendancePage() {
         />
       )}
 
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
-
 
 /* ---- Trainers list page (Trainers > Trainers) ---- */
 
@@ -1820,6 +2019,7 @@ const EMPTY_TRAINER_FORM = {
 
 function TrainerFormModal({ title, initialValues, onClose, onSave }) {
   const [form, setForm] = useState(initialValues || EMPTY_TRAINER_FORM);
+  useEscapeKey(onClose);
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleSubmit = (e) => {
@@ -1830,10 +2030,10 @@ function TrainerFormModal({ title, initialValues, onClose, onSave }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <form className="ta-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form className="ta-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit} role="dialog" aria-modal="true" aria-label={title}>
         <div className="ta-modal-header">
           <h3>{title}</h3>
-          <button type="button" className="ta-modal-close" onClick={onClose}>
+          <button type="button" className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -1899,9 +2099,7 @@ function TrainersListPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [formModal, setFormModal] = useState(null);
-  const [toast, setToast] = useState("");
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+  const { toasts, showToast } = useToasts();
 
   const filtered = trainers.filter((t) => {
     if (!searchQuery.trim()) return true;
@@ -1913,7 +2111,7 @@ function TrainersListPage() {
   const handleExport = () => showToast("Export downloaded");
 
   const handleAdd = (form) => {
-    setTrainers((prev) => [{ id: nextTrainerId++, ...form, courses: [form.courses], cities: [form.cities] }, ...prev]);
+    setTrainers((prev) => [{ id: nextId(prev), ...form, courses: [form.courses], cities: [form.cities] }, ...prev]);
     setFormModal(null);
     showToast("Trainer added");
   };
@@ -1936,6 +2134,7 @@ function TrainersListPage() {
         <input
           className="ta-search-input"
           placeholder="Search"
+          aria-label="Search trainers"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -1974,7 +2173,7 @@ function TrainersListPage() {
                   <td>{(t.cities || []).join(", ")}</td>
                   <td><span className={`ta-badge ${t.status === "Active" ? "ta-badge-blue" : "ta-badge-gray"}`}>{t.status}</span></td>
                   <td>
-                    <button className="ta-icon-action" title="Edit" onClick={() => setFormModal({ mode: "edit", trainer: t })}>
+                    <button className="ta-icon-action" title="Edit" aria-label={`Edit ${t.name}`} onClick={() => setFormModal({ mode: "edit", trainer: t })}>
                       <Icon path={ICONS.pencil} size={15} />
                     </button>
                   </td>
@@ -1987,10 +2186,10 @@ function TrainersListPage() {
 
       {filtersOpen && (
         <div className="ta-modal-overlay" onClick={() => setFiltersOpen(false)}>
-          <div className="ta-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="ta-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Trainer filters">
             <div className="ta-modal-header">
               <h3>Filters</h3>
-              <button className="ta-modal-close" onClick={() => setFiltersOpen(false)}>
+              <button className="ta-modal-close" onClick={() => setFiltersOpen(false)} aria-label="Close">
                 <Icon path={ICONS.close} size={18} />
               </button>
             </div>
@@ -2022,7 +2221,7 @@ function TrainersListPage() {
         />
       )}
 
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
@@ -2033,14 +2232,7 @@ function MarkTrainerAttendancePage() {
   const [employeeId, setEmployeeId] = useState("");
   const [verifiedTrainer, setVerifiedTrainer] = useState(null);
   const [searched, setSearched] = useState(false);
-  const [toast, setToast] = useState("");
-  const [toastType, setToastType] = useState("error");
-
-  const showToast = (msg, type = "error") => {
-    setToastType(type);
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
-  };
+  const { toasts, showToast } = useToasts();
 
   const handleVerify = () => {
     const trainer = TRAINERS_FULL_LIST.find((t) => t.employeeId === employeeId.trim());
@@ -2051,15 +2243,15 @@ function MarkTrainerAttendancePage() {
   const handleCheckIn = () => {
     if (!verifiedTrainer) return;
     if (!isWithinCheckInWindow(verifiedTrainer.slotSchedule)) {
-      showToast("Check-in not allowed at this time");
+      showToast("Check-in not allowed at this time", "error");
       return;
     }
-    showToast(`Checked in: ${verifiedTrainer.name}`, "success");
+    showToast(`Checked in: ${verifiedTrainer.name}`);
   };
 
   const handleCheckOut = () => {
     if (!verifiedTrainer) return;
-    showToast(`Checked out: ${verifiedTrainer.name}`, "success");
+    showToast(`Checked out: ${verifiedTrainer.name}`);
   };
 
   return (
@@ -2071,6 +2263,7 @@ function MarkTrainerAttendancePage() {
             <input
               className="ta-form-input ta-full-width"
               placeholder="Scan or enter Employee ID"
+              aria-label="Employee ID"
               value={employeeId}
               onChange={(e) => { setEmployeeId(e.target.value); setSearched(false); }}
               onKeyDown={(e) => e.key === "Enter" && handleVerify()}
@@ -2109,7 +2302,7 @@ function MarkTrainerAttendancePage() {
         </div>
       </div>
 
-      {toast && <div className={`ta-toast ${toastType === "error" ? "ta-toast-error" : ""}`}>{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
@@ -2118,6 +2311,7 @@ function MarkTrainerAttendancePage() {
 
 function TrainerAttendanceFiltersModal({ onClose, onApply, initialValues }) {
   const [values, setValues] = useState(initialValues || {});
+  useEscapeKey(onClose);
   const set = (key, val) => setValues((v) => ({ ...v, [key]: val }));
 
   const trainerNames = TRAINERS_FULL_LIST.map((t) => t.name);
@@ -2126,10 +2320,10 @@ function TrainerAttendanceFiltersModal({ onClose, onApply, initialValues }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <div className="ta-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="ta-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Trainer attendance filters">
         <div className="ta-modal-header">
           <h3>Filters</h3>
-          <button className="ta-modal-close" onClick={onClose}>
+          <button className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -2172,9 +2366,9 @@ function TrainerAttendanceFiltersModal({ onClose, onApply, initialValues }) {
           <div className="ta-filter-field">
             <label>Start date  →  End date</label>
             <div className="ta-date-range-wrap">
-              <input type="date" value={values.startDate || ""} onChange={(e) => set("startDate", e.target.value)} />
+              <input type="date" aria-label="Start date" value={values.startDate || ""} onChange={(e) => set("startDate", e.target.value)} />
               <span style={{ color: "var(--ta-text-muted)", fontSize: 11 }}>to</span>
-              <input type="date" value={values.endDate || ""} onChange={(e) => set("endDate", e.target.value)} />
+              <input type="date" aria-label="End date" value={values.endDate || ""} onChange={(e) => set("endDate", e.target.value)} />
               <Icon path={ICONS.calendar} size={15} />
             </div>
           </div>
@@ -2194,6 +2388,7 @@ function TrainerAttendanceEditModal({ record, onClose, onSave }) {
   const [date, setDate] = useState(initialDate);
   const [checkIn, setCheckIn] = useState(record.checkIn ? record.checkIn.slice(11, 16) : "");
   const [checkOut, setCheckOut] = useState(record.checkOut ? record.checkOut.slice(11, 16) : "");
+  useEscapeKey(onClose);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -2205,10 +2400,10 @@ function TrainerAttendanceEditModal({ record, onClose, onSave }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <form className="ta-modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form className="ta-modal" style={{ maxWidth: 380 }} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit} role="dialog" aria-modal="true" aria-label={`Edit attendance for ${record.trainerName}`}>
         <div className="ta-modal-header">
           <h3>Edit Attendance — {record.trainerName}</h3>
-          <button type="button" className="ta-modal-close" onClick={onClose}>
+          <button type="button" className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -2245,9 +2440,7 @@ function ViewTrainerAttendancePage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [editRecord, setEditRecord] = useState(null);
-  const [toast, setToast] = useState("");
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+  const { toasts, showToast } = useToasts();
 
   const matchesFilters = (r) => {
     const f = appliedFilters;
@@ -2276,7 +2469,7 @@ function ViewTrainerAttendancePage() {
   return (
     <div className="ta-students-page">
       <div className="ta-students-toolbar">
-        <button className="ta-icon-only-btn" title="View options">
+        <button className="ta-icon-only-btn" title="View options" aria-label="View options">
           <Icon path={ICONS.sliders} size={16} />
         </button>
         <button className="ta-btn-outline ta-filters-btn" onClick={() => setFiltersOpen(true)}>
@@ -2287,6 +2480,7 @@ function ViewTrainerAttendancePage() {
         <input
           className="ta-search-input"
           placeholder="Search"
+          aria-label="Search trainer attendance"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -2326,7 +2520,7 @@ function ViewTrainerAttendancePage() {
                   <td>{durationLabel(r.checkIn, r.checkOut)}</td>
                   <td><span className="ta-badge ta-badge-gray">{r.status}</span></td>
                   <td>
-                    <button className="ta-icon-action" title="Edit" onClick={() => setEditRecord(r)}>
+                    <button className="ta-icon-action" title="Edit" aria-label={`Edit attendance for ${r.trainerName}`} onClick={() => setEditRecord(r)}>
                       <Icon path={ICONS.pencil} size={15} />
                     </button>
                   </td>
@@ -2353,7 +2547,7 @@ function ViewTrainerAttendancePage() {
         />
       )}
 
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
@@ -2365,6 +2559,7 @@ function AttendanceRequestFormModal({ onClose, onSubmit }) {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [reason, setReason] = useState("");
+  useEscapeKey(onClose);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -2373,10 +2568,10 @@ function AttendanceRequestFormModal({ onClose, onSubmit }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <form className="ta-modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form className="ta-modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit} role="dialog" aria-modal="true" aria-label="Attendance request">
         <div className="ta-modal-header">
           <h3>Attendance Request</h3>
-          <button type="button" className="ta-modal-close" onClick={onClose}>
+          <button type="button" className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -2421,22 +2616,22 @@ function TrainerAttendanceRequestPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
   const [generateOpen, setGenerateOpen] = useState(false);
-  const [toast, setToast] = useState("");
-
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2000); };
+  const { toasts, showToast } = useToasts();
 
   const handleGenerate = (vals) => {
-    const newReq = {
-      id: nextRequestId++,
-      trainerName: "Sir ARSLAN AHMED (SUK)",
-      campus: "Saylani TITAN Sukkur Campus",
-      schedule: "Sat 08:00 AM - 10:00 AM | Sun 08:00 AM - 10:00 AM",
-      checkIn: vals.checkIn,
-      checkOut: vals.checkOut,
-      type: "Correction",
-      status: "pending",
-    };
-    setRequests((prev) => [newReq, ...prev]);
+    setRequests((prev) => [
+      {
+        id: nextId(prev),
+        trainerName: "Sir ARSLAN AHMED (SUK)",
+        campus: "Saylani TITAN Sukkur Campus",
+        schedule: "Sat 08:00 AM - 10:00 AM | Sun 08:00 AM - 10:00 AM",
+        checkIn: vals.checkIn,
+        checkOut: vals.checkOut,
+        type: "Correction",
+        status: "pending",
+      },
+      ...prev,
+    ]);
     setGenerateOpen(false);
     showToast("Request submitted");
   };
@@ -2444,7 +2639,7 @@ function TrainerAttendanceRequestPage() {
   return (
     <div className="ta-students-page">
       <div className="ta-students-toolbar">
-        <button className="ta-icon-only-btn" title="View options">
+        <button className="ta-icon-only-btn" title="View options" aria-label="View options">
           <Icon path={ICONS.sliders} size={16} />
         </button>
         <button className="ta-btn-outline ta-filters-btn" onClick={() => setFiltersOpen(true)}>
@@ -2463,7 +2658,7 @@ function TrainerAttendanceRequestPage() {
         <table className="ta-table">
           <thead>
             <tr>
-              <th style={{ width: 32 }}><input type="checkbox" /></th>
+              <th style={{ width: 32 }}><input type="checkbox" aria-label="Select all requests" /></th>
               <th>Trainer</th>
               <th>Campus</th>
               <th>Schedule</th>
@@ -2480,7 +2675,7 @@ function TrainerAttendanceRequestPage() {
             ) : (
               requests.map((r) => (
                 <tr key={r.id}>
-                  <td><input type="checkbox" /></td>
+                  <td><input type="checkbox" aria-label={`Select request for ${r.trainerName}`} /></td>
                   <td>{r.trainerName}</td>
                   <td>{r.campus}</td>
                   <td>{r.schedule}</td>
@@ -2511,12 +2706,11 @@ function TrainerAttendanceRequestPage() {
         />
       )}
 
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
 
-const SLOT_DAYS = ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"];
 const SLOT_TRAINERS = ["Shehzad Iqbal", "Miss Muskan", "Shumaila Shiwani", "Miss Hanifa Asad", "Waqas Ahmed", "Sana Malik", "Faisal Raza"];
 const SLOT_COURSES = [
   "Modern Web Application Development | Batch (1)",
@@ -2529,26 +2723,19 @@ const SLOT_STATUS_OPTIONS = ["ACTIVE", "INACTIVE"];
 const ONLINE_OPTIONS = ["YES", "NO"];
 const CERT_OPTIONS = ["FREE", "PAID"];
 
-let nextSlotId = 7;
-
 const SEED_SLOTS = [
   {
     id: 1,
     schedule: "Sat 11:00 PM - 01:00 AM",
-    day: "Sat",
-    startTime: "23:00",
-    endTime: "01:00",
     trainer: "Shehzad Iqbal",
     course: "Modern Web Application Development | Batch (1)",
     city: "Sukkur",
     campus: "Bahria College 1 Majeed...",
     enrolled: 15,
     capacity: 50,
-    facility: "Lab",
     classType: "Lab",
     gender: "Male",
     status: "ACTIVE",
-    online: "NO",
     onlineOffline: "NO",
     startDate: "2025-08-01",
     endDate: "",
@@ -2559,20 +2746,15 @@ const SEED_SLOTS = [
   {
     id: 2,
     schedule: "Sat 09:00 AM - 11:00 AM",
-    day: "Sat",
-    startTime: "09:00",
-    endTime: "11:00",
     trainer: "Shehzad Iqbal",
     course: "Modern Web Application Development | Batch (1)",
     city: "Sukkur",
     campus: "Bahria College 1 Majeed...",
     enrolled: 19,
     capacity: 63,
-    facility: "Lab",
     classType: "Lab",
     gender: "Female",
     status: "ACTIVE",
-    online: "NO",
     onlineOffline: "NO",
     startDate: "2025-08-01",
     endDate: "",
@@ -2583,20 +2765,15 @@ const SEED_SLOTS = [
   {
     id: 3,
     schedule: "Mon 09:00 AM - 11:00 AM",
-    day: "Mon",
-    startTime: "09:00",
-    endTime: "11:00",
     trainer: "Miss Muskan",
     course: "AI & Game Creators | Batch (1)",
     city: "Karachi",
     campus: "Bahria College Hanif...",
     enrolled: 0,
     capacity: 50,
-    facility: "Lab",
     classType: "Lab",
     gender: "Female",
     status: "ACTIVE",
-    online: "NO",
     onlineOffline: "NO",
     startDate: "2026-06-08",
     endDate: "2026-08-01",
@@ -2607,20 +2784,15 @@ const SEED_SLOTS = [
   {
     id: 4,
     schedule: "Mon 11:00 AM - 01:00 PM",
-    day: "Mon",
-    startTime: "11:00",
-    endTime: "13:00",
     trainer: "Miss Muskan",
     course: "Little Geniuses: Coding, Design & AI Fun Lab | Batch (1)",
     city: "Karachi",
     campus: "Bahria College Hanif...",
     enrolled: 0,
     capacity: 70,
-    facility: "Lab",
     classType: "Lab",
     gender: "Female",
     status: "ACTIVE",
-    online: "NO",
     onlineOffline: "NO",
     startDate: "2026-06-08",
     endDate: "2026-08-01",
@@ -2631,20 +2803,15 @@ const SEED_SLOTS = [
   {
     id: 5,
     schedule: "Mon 11:00 AM - 01:00 PM",
-    day: "Mon",
-    startTime: "11:00",
-    endTime: "13:00",
     trainer: "Shumaila Shiwani",
     course: "Little Geniuses: Coding, Design & AI Fun Lab | Batch (1)",
     city: "Lahore",
     campus: "Bahria Subh-e-Nau Se...",
     enrolled: 0,
     capacity: 80,
-    facility: "Lab",
     classType: "Lab",
     gender: "Female",
     status: "ACTIVE",
-    online: "NO",
     onlineOffline: "NO",
     startDate: "2026-06-08",
     endDate: "2026-08-01",
@@ -2655,20 +2822,15 @@ const SEED_SLOTS = [
   {
     id: 6,
     schedule: "Tue 09:00 AM - 11:00 AM",
-    day: "Tue",
-    startTime: "09:00",
-    endTime: "11:00",
     trainer: "Miss Hanifa Asad",
     course: "AI & Game Creators | Batch (1)",
     city: "Karachi",
     campus: "Bahria College Hanif...",
     enrolled: 0,
     capacity: 60,
-    facility: "Lab",
     classType: "Lab",
     gender: "Female",
     status: "ACTIVE",
-    online: "NO",
     onlineOffline: "NO",
     startDate: "2026-06-08",
     endDate: "2026-06-10",
@@ -2695,22 +2857,7 @@ const EMPTY_SLOT_FORM = {
   whatsappLink: "",
   enrolled: 0,
   capacity: 50,
-  // legacy fields kept so existing table code / edit flow still works
-  day: SLOT_DAYS[0],
-  startTime: "09:00",
-  endTime: "11:00",
-  facility: FACILITY_OPTIONS[0],
-  online: "NO",
 };
-
-function formatTime12(t) {
-  if (!t) return "";
-  const [hStr, m] = t.split(":");
-  let h = Number(hStr);
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12 || 12;
-  return `${String(h).padStart(2, "0")}:${m} ${ampm}`;
-}
 
 function formatSlotDate(d) {
   if (!d) return "—";
@@ -2718,9 +2865,9 @@ function formatSlotDate(d) {
   return `${String(dateObj.getDate()).padStart(2, "0")} ${MONTH_NAMES[dateObj.getMonth()].slice(0, 3)} ${dateObj.getFullYear()}`;
 }
 
-
 function SlotFormModal({ title, initialValues, onClose, onSave }) {
   const [form, setForm] = useState(initialValues || EMPTY_SLOT_FORM);
+  useEscapeKey(onClose);
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleSubmit = (e) => {
@@ -2730,10 +2877,10 @@ function SlotFormModal({ title, initialValues, onClose, onSave }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <form className="ta-modal ta-slot-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+      <form className="ta-modal ta-slot-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit} role="dialog" aria-modal="true" aria-label={title}>
         <div className="ta-modal-header">
           <h3>{title}</h3>
-          <button type="button" className="ta-modal-close" onClick={onClose}>
+          <button type="button" className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -2828,6 +2975,7 @@ function SlotFormModal({ title, initialValues, onClose, onSave }) {
                 type="range"
                 min="0"
                 max="200"
+                aria-label="Capacity"
                 value={form.capacity}
                 onChange={(e) => set("capacity", Number(e.target.value))}
                 className="ta-slot-capacity-slider"
@@ -2848,6 +2996,7 @@ function SlotFormModal({ title, initialValues, onClose, onSave }) {
 
 function SlotsFiltersModal({ onClose, onApply, initialValues }) {
   const [values, setValues] = useState(initialValues || {});
+  useEscapeKey(onClose);
   const set = (key, val) => setValues((v) => ({ ...v, [key]: val }));
 
   const FIELDS = [
@@ -2863,10 +3012,10 @@ function SlotsFiltersModal({ onClose, onApply, initialValues }) {
 
   return (
     <div className="ta-modal-overlay" onClick={onClose}>
-      <div className="ta-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="ta-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Slot filters">
         <div className="ta-modal-header">
           <h3>Filters</h3>
-          <button className="ta-modal-close" onClick={onClose}>
+          <button className="ta-modal-close" onClick={onClose} aria-label="Close">
             <Icon path={ICONS.close} size={18} />
           </button>
         </div>
@@ -2897,23 +3046,18 @@ function SlotsPage() {
   const [slots, setSlots] = useState(SEED_SLOTS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState({});
-  const [formModal, setFormModal] = useState(null); // { mode: "add" | "edit", slot? }
-  const [toast, setToast] = useState("");
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 2500);
-  };
+  const [formModal, setFormModal] = useState(null);
+  const { toasts, showToast } = useToasts();
 
   const matchesFilters = (s) => {
     const f = appliedFilters;
     if (f.trainer && s.trainer !== f.trainer) return false;
     if (f.course && s.course !== f.course) return false;
     if (f.campus && s.campus !== f.campus) return false;
-    if (f.facility && s.facility !== f.facility) return false;
+    if (f.facility && s.classType !== f.facility) return false;
     if (f.gender && s.gender !== f.gender) return false;
     if (f.status && s.status !== f.status) return false;
-    if (f.online && s.online !== f.online) return false;
+    if (f.online && s.onlineOffline !== f.online) return false;
     if (f.cert && s.cert !== f.cert) return false;
     return true;
   };
@@ -2921,7 +3065,7 @@ function SlotsPage() {
   const filteredRows = slots.filter(matchesFilters);
 
   const handleAdd = (form) => {
-    setSlots((prev) => [{ id: nextSlotId++, ...form }, ...prev]);
+    setSlots((prev) => [{ id: nextId(prev), ...form }, ...prev]);
     setFormModal(null);
     showToast("Slot added");
   };
@@ -2935,7 +3079,7 @@ function SlotsPage() {
   return (
     <div className="ta-students-page">
       <div className="ta-students-toolbar">
-        <button className="ta-icon-only-btn" title="Export">
+        <button className="ta-icon-only-btn" title="Export" aria-label="Export slots">
           <Icon path={ICONS.download} size={16} />
         </button>
 
@@ -2985,14 +3129,14 @@ function SlotsPage() {
             ) : (
               filteredRows.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.schedule || `${s.day} ${formatTime12(s.startTime)} - ${formatTime12(s.endTime)}`}</td>
+                  <td>{s.schedule}</td>
                   <td>{s.trainer}</td>
                   <td>{s.course}</td>
                   <td>{s.campus}</td>
                   <td>{s.enrolled}/{s.capacity}</td>
                   <td>
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <Icon path={ICONS.building} size={13} /> {s.classType || s.facility}
+                      <Icon path={ICONS.building} size={13} /> {s.classType}
                     </span>
                   </td>
                   <td>{s.gender}</td>
@@ -3001,7 +3145,7 @@ function SlotsPage() {
                       {s.status}
                     </span>
                   </td>
-                  <td>{s.onlineOffline || s.online}</td>
+                  <td>{s.onlineOffline}</td>
                   <td>{formatSlotDate(s.startDate)}</td>
                   <td>{formatSlotDate(s.endDate)}</td>
                   <td>
@@ -3010,7 +3154,7 @@ function SlotsPage() {
                     </span>
                   </td>
                   <td>
-                    <button className="ta-icon-action" title="Edit" onClick={() => setFormModal({ mode: "edit", slot: s })}>
+                    <button className="ta-icon-action" title="Edit" aria-label={`Edit slot ${s.schedule}`} onClick={() => setFormModal({ mode: "edit", slot: s })}>
                       <Icon path={ICONS.pencil} size={15} />
                     </button>
                   </td>
@@ -3047,72 +3191,23 @@ function SlotsPage() {
         />
       )}
 
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
-
 
 /* ---------------------------------------------------------------
    Updation page — bulk status update by comma-separated roll numbers
-   (exact match of the admin.saylanimit.com/updation screenshots:
-   "results" dropdown, roll numbers box, message box, status dropdown
-   with its own option overlay, full-width UPDATE button, and the
-   "comma seprated values" hint linking to Text to Array Converter)
 ------------------------------------------------------------------ */
 
 const UPDATION_TYPES = ["results"];
-
-function UpdationDropdown({ value, placeholder, options, onChange }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="ta-select-wrap ta-updation-select" onClick={() => setOpen((p) => !p)}>
-      <span className={value ? "" : "ta-select-placeholder"}>
-        {value || placeholder}
-      </span>
-      <Icon path={ICONS.chevronDown} size={15} />
-      {open && (
-        <>
-          <div className="ta-select-backdrop" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
-          <div className="ta-select-menu">
-            <div
-              className="ta-select-option ta-select-option-clear"
-              onClick={(e) => { e.stopPropagation(); onChange(""); setOpen(false); }}
-            >
-              {placeholder}
-            </div>
-            {options.map((opt) => (
-              <div
-                key={opt}
-                className="ta-select-option"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onChange(opt);
-                  setOpen(false);
-                }}
-              >
-                {opt}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 function UpdationPage() {
   const [type, setType] = useState("results");
   const [rollNumbers, setRollNumbers] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState("");
-  const [toast, setToast] = useState("");
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
-  };
+  const { toasts, showToast } = useToasts();
 
   const canSubmit = rollNumbers.trim().length > 0 && !!status;
 
@@ -3134,16 +3229,18 @@ function UpdationPage() {
   return (
     <div className="ta-updation-page">
       <form className="ta-updation-form" onSubmit={handleUpdate}>
-        <UpdationDropdown
+        <CustomSelect
           value={type}
           placeholder="results"
           options={UPDATION_TYPES}
           onChange={setType}
+          allowClear={false}
         />
 
         <textarea
           className="ta-updation-textarea ta-updation-roll"
           placeholder="Roll numbers example: 1122,1123,1124,1125"
+          aria-label="Roll numbers"
           value={rollNumbers}
           onChange={(e) => setRollNumbers(e.target.value)}
         />
@@ -3152,11 +3249,12 @@ function UpdationPage() {
           className="ta-updation-input"
           type="text"
           placeholder="Message"
+          aria-label="Message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
 
-        <UpdationDropdown
+        <CustomSelect
           value={status}
           placeholder="Select status"
           options={STATUS_OPTIONS}
@@ -3175,11 +3273,10 @@ function UpdationPage() {
         </p>
       </form>
 
-      {toast && <div className="ta-toast">{toast}</div>}
+      <ToastStack toasts={toasts} />
     </div>
   );
 }
-
 
 const PERMISSION_GROUPS = [
   { key: "DASHBOARD", perms: ["READ"] },
@@ -3256,8 +3353,6 @@ function ProfilePage({ user, onLogout }) {
   );
 }
 
-
-
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: ICONS.grid, type: "link" },
   { key: "students", label: "Students", icon: ICONS.users, type: "link" },
@@ -3325,15 +3420,6 @@ function navGroupHasActive(item, activePage) {
   });
 }
 
-function groupKeyForPage(activePage) {
-  for (const item of NAV_ITEMS) {
-    if (item.type === "group" && navGroupHasActive(item, activePage)) {
-      return item.key;
-    }
-  }
-  return null;
-}
-
 const STAT_CARDS = [
   { label: "Total Students", value: "592,986", icon: ICONS.users },
   { label: "Enrolled Students", value: "21,110", icon: ICONS.trend },
@@ -3345,12 +3431,20 @@ export function AdminDashboard({ user, onLogout }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // desktop: expanded/collapsed
   const [isMobileOpen, setIsMobileOpen] = useState(false); // mobile: slide in/out
   const [activePage, setActivePage] = useState("dashboard");
-  const [openGroups, setOpenGroups] = useState(() => ({
-    "attendance-group": true,
-    "administration-group": true,
-    "trainers-group": true,
-    "trainer-attendance-subgroup": true,
-  }));
+//   const [openGroups, setOpenGroups] = useState(() => ({
+//     "attendance-group": true,
+//     "administration-group": true,
+//     "trainers-group": true,
+//     "trainer-attendance-subgroup": true,
+//   }));
+
+// AB YE KAREIN (sab false — dropdowns band rehte hain):
+const [openGroups, setOpenGroups] = useState(() => ({
+  "attendance-group": false,
+  "administration-group": false,
+  "trainers-group": false,
+  "trainer-attendance-subgroup": false,
+}));
 
   const toggleSidebar = () => setIsSidebarOpen((p) => !p);
   const toggleMobileSidebar = () => setIsMobileOpen((p) => !p);
@@ -3363,8 +3457,8 @@ export function AdminDashboard({ user, onLogout }) {
       <div className="ta-dash">
         {/* Mobile top bar */}
         <div className="ta-mobile-bar">
-          <button className="ta-mobile-hamburger" onClick={toggleMobileSidebar} aria-label="Menu">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <button className="ta-mobile-hamburger" onClick={toggleMobileSidebar} aria-label="Toggle menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <line x1="3" y1="12" x2="21" y2="12" />
               <line x1="3" y1="6" x2="21" y2="6" />
               <line x1="3" y1="18" x2="21" y2="18" />
@@ -3383,11 +3477,16 @@ export function AdminDashboard({ user, onLogout }) {
             isMobileOpen ? "mobile-open" : ""
           }`}
         >
-          <div className="ta-sidebar-toggle" onClick={toggleSidebar}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+          <button
+            type="button"
+            className="ta-sidebar-toggle"
+            onClick={toggleSidebar}
+            aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true">
               {isSidebarOpen ? <polyline points="15 18 9 12 15 6" /> : <polyline points="9 18 15 12 9 6" />}
             </svg>
-          </div>
+          </button>
 
           <div className="ta-sidebar-brand">
             <img src={TITAN_LOGO} alt="TITAN" />
@@ -3408,9 +3507,18 @@ export function AdminDashboard({ user, onLogout }) {
                   <div
                     key={item.key}
                     className={`ta-nav-item ${activePage === item.key ? "active" : ""}`}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => {
                       setActivePage(item.key);
                       setIsMobileOpen(false);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setActivePage(item.key);
+                        setIsMobileOpen(false);
+                      }
                     }}
                   >
                     <Icon path={item.icon} />
@@ -3419,7 +3527,6 @@ export function AdminDashboard({ user, onLogout }) {
                 );
               }
 
-        
               const isOpen = !!openGroups[item.key];
               const groupHasActiveChild = navGroupHasActive(item, activePage);
 
@@ -3427,7 +3534,16 @@ export function AdminDashboard({ user, onLogout }) {
                 <div key={item.key} className="ta-nav-group">
                   <div
                     className={`ta-nav-item ta-nav-group-header ${groupHasActiveChild ? "active" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isOpen}
                     onClick={() => toggleGroup(item.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleGroup(item.key);
+                      }
+                    }}
                   >
                     <Icon path={item.icon} />
                     {showLabels && <span>{item.label}</span>}
@@ -3451,7 +3567,16 @@ export function AdminDashboard({ user, onLogout }) {
                             <div key={child.key} className="ta-nav-group">
                               <div
                                 className={`ta-nav-subgroup-header ${subHasActive ? "active" : ""}`}
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={subOpen}
                                 onClick={() => toggleGroup(child.key)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    toggleGroup(child.key);
+                                  }
+                                }}
                               >
                                 <span>{child.label}</span>
                                 <span
@@ -3467,9 +3592,18 @@ export function AdminDashboard({ user, onLogout }) {
                                     <div
                                       key={sc.key}
                                       className={`ta-nav-item ta-nav-subchild ${activePage === sc.key ? "active" : ""}`}
+                                      role="button"
+                                      tabIndex={0}
                                       onClick={() => {
                                         setActivePage(sc.key);
                                         setIsMobileOpen(false);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.preventDefault();
+                                          setActivePage(sc.key);
+                                          setIsMobileOpen(false);
+                                        }
                                       }}
                                     >
                                       <span>{sc.label}</span>
@@ -3484,9 +3618,18 @@ export function AdminDashboard({ user, onLogout }) {
                           <div
                             key={child.key}
                             className={`ta-nav-item ta-nav-child ${activePage === child.key ? "active" : ""}`}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => {
                               setActivePage(child.key);
                               setIsMobileOpen(false);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setActivePage(child.key);
+                                setIsMobileOpen(false);
+                              }
                             }}
                           >
                             <span>{child.label}</span>
